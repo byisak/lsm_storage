@@ -124,7 +124,12 @@ function HomeContent() {
     if (scanParam) {
       // 랙 검색 탭으로 전환하고 자동 검색
       setActiveTab('rack')
-      setQuery(scanParam)
+
+      // QR 형식: "1|A-01-A2"에서 위치값만 인풋에 표시
+      const locationOnly = scanParam.includes('|')
+        ? scanParam.split('|')[1]
+        : scanParam
+      setQuery(locationOnly)
 
       // 검색 실행
       const doSearch = async () => {
