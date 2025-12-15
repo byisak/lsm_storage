@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Warehouse, MapPin, Package, Hash, FileText, Loader2, CheckCircle2, XCircle, ChevronDown, History } from 'lucide-react'
-import { getWarehouses, getWarehouseName, WarehouseConfig } from '@/lib/warehouse-config'
+import { useWarehouses } from '@/lib/warehouse-context'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
 
 interface AutocompleteItem {
@@ -21,7 +21,7 @@ interface LocationSuggestion {
 
 function TransactionInContent() {
   const searchParams = useSearchParams()
-  const [warehouses, setWarehouses] = useState<WarehouseConfig[]>([])
+  const { warehouses, getWarehouseName } = useWarehouses()
   const [formData, setFormData] = useState({
     storage: '',
     location: '',
@@ -58,8 +58,6 @@ function TransactionInContent() {
   const recentItemsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setWarehouses(getWarehouses())
-
     // 최근 입력 기록 로드
     const fetchRecentHistory = async () => {
       try {

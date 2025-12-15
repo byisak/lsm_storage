@@ -175,3 +175,10 @@ export interface LsUser {
   APPROVED_AT: Date | null
   APPROVED_BY: number | null
 }
+
+export interface LsWarehouse {
+  ID: string
+  NAME: string
+  SORT_ORDER: number
+  CREATED_AT: Date
+}

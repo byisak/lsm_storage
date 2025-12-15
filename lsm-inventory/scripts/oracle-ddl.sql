@@ -46,6 +46,27 @@ INSERT INTO LS_USERS (NAME, EMAIL, PASSWORD, STATUS, ROLE)
 VALUES ('관리자', 'admin@lsmecapion.com', '$2b$10$zkUDk29iHQ0neLn9dehqzulJpjg/fFjXSNf7WW4vqlqP1ZgkQZo/u', 'APPROVED', 'ADMIN');
 
 -- ============================================================
+-- 0-1. 창고 설정 테이블 (ls_warehouses)
+-- ============================================================
+CREATE TABLE LS_WAREHOUSES (
+    ID VARCHAR2(10) PRIMARY KEY,
+    NAME VARCHAR2(100) NOT NULL,
+    SORT_ORDER NUMBER DEFAULT 0,
+    CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+COMMENT ON TABLE LS_WAREHOUSES IS '창고 설정';
+COMMENT ON COLUMN LS_WAREHOUSES.ID IS '창고 ID (QR 코드에서 사용)';
+COMMENT ON COLUMN LS_WAREHOUSES.NAME IS '창고명';
+COMMENT ON COLUMN LS_WAREHOUSES.SORT_ORDER IS '정렬 순서';
+COMMENT ON COLUMN LS_WAREHOUSES.CREATED_AT IS '생성일시';
+
+-- 기본 창고 데이터
+INSERT INTO LS_WAREHOUSES (ID, NAME, SORT_ORDER) VALUES ('1', '모터 창고', 1);
+INSERT INTO LS_WAREHOUSES (ID, NAME, SORT_ORDER) VALUES ('2', '외부 창고', 2);
+INSERT INTO LS_WAREHOUSES (ID, NAME, SORT_ORDER) VALUES ('3', '제품 창고', 3);
+
+-- ============================================================
 -- 1. 재고 마스터 테이블 (ls_motor_rack)
 -- ============================================================
 CREATE TABLE LS_MOTOR_RACK (

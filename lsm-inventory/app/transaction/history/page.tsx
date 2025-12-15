@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, ArrowDownToLine, ArrowUpFromLine, MapPin, Warehouse, User, Loader2, ClipboardX, Pencil, MoveRight } from 'lucide-react'
-import { getWarehouseName } from '@/lib/warehouse-config'
+import { useWarehouses } from '@/lib/warehouse-context'
 
 interface SubulItem {
   id: number
@@ -24,6 +24,7 @@ export default function TransactionHistoryPage() {
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<SubulItem[]>([])
   const [loading, setLoading] = useState(false)
+  const { getWarehouseName } = useWarehouses()
 
   useEffect(() => {
     fetchHistory()

@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, MapPin, Package, FileText, Loader2, CheckCircle2, XCircle, ChevronLeft, Minus, Warehouse } from 'lucide-react'
-import { getWarehouseName } from '@/lib/warehouse-config'
+import { useWarehouses } from '@/lib/warehouse-context'
 
 interface RackItem {
   id: number
@@ -17,6 +17,7 @@ interface RackItem {
 }
 
 export default function TransactionOutPage() {
+  const { getWarehouseName } = useWarehouses()
   const [location, setLocation] = useState('')
   const [items, setItems] = useState<RackItem[]>([])
   const [loading, setLoading] = useState(false)

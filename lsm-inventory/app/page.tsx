@@ -15,7 +15,7 @@ import {
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Search, Loader2, Package, MapPin, Warehouse, Calendar as CalendarIcon, PackageSearch, ArrowUpFromLine, Pencil, CheckCircle2, XCircle, PackageX, PackagePlus, MoveRight, ChevronDown } from 'lucide-react'
-import { getWarehouseName, getWarehouses, WarehouseConfig } from '@/lib/warehouse-config'
+import { useWarehouses, WarehouseConfig } from '@/lib/warehouse-context'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
@@ -103,7 +103,6 @@ function HomeContent() {
   })
   const [moveLoading, setMoveLoading] = useState(false)
   const [moveMessage, setMoveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [warehouses, setWarehouses] = useState<WarehouseConfig[]>([])
 
   // 이동 모달 위치 자동완성 상태
   const [moveLocationSuggestions, setMoveLocationSuggestions] = useState<LocationSuggestion[]>([])
@@ -113,10 +112,8 @@ function HomeContent() {
   const moveLocationInputRef = useRef<HTMLInputElement>(null)
   const moveLocationSuggestionsRef = useRef<HTMLDivElement>(null)
 
-  // 창고 목록 로드
-  useEffect(() => {
-    setWarehouses(getWarehouses())
-  }, [])
+  // 창고 컨텍스트에서 창고 목록 및 이름 조회 함수 가져오기
+  const { warehouses, getWarehouseName } = useWarehouses()
 
   // URL 파라미터로 QR 스캔 자동 검색
   useEffect(() => {
