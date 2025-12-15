@@ -128,23 +128,30 @@ function HomeContent() {
 
       // 검색 실행
       const doSearch = async () => {
-        const q = expandLocation(scanParam)
         setHasSearched(true)
         setShowLocationSuggestions(false)
         setLocationSuggestions([])
         setLoading(true)
         setSearched(true)
-        setCurrentSearchQuery(q)
 
         try {
-          if (q.includes('|')) {
-            const res = await fetch(`/api/rack/scan?q=${encodeURIComponent(q)}`)
+          if (scanParam.includes('|')) {
+            // QR 형식: "1|A-01-A2" → 창고ID|위치
+            const [storageId, locationPart] = scanParam.split('|')
+            const storageName = getWarehouseName(storageId) // 창고 ID를 이름으로 변환
+            const location = expandLocation(locationPart)
+
+            setCurrentSearchQuery(location)
+
+            const res = await fetch(`/api/rack/scan?storage=${encodeURIComponent(storageName)}&location=${encodeURIComponent(location)}`)
             const data = await res.json()
             if (data.success) {
               setItems(data.items)
-              setSearchedLocation({ storage: data.storage, location: data.location })
+              setSearchedLocation({ storage: storageId, location: location })
             }
           } else {
+            const q = expandLocation(scanParam)
+            setCurrentSearchQuery(q)
             const res = await fetch(`/api/rack/search?location=${encodeURIComponent(q)}`)
             const data = await res.json()
             if (data.success) {
