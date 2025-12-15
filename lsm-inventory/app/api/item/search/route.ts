@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { executeQuery, LsMotorRack } from '@/lib/oracle'
 
 // 품목코드 또는 품목명으로 검색
 export async function GET(request: NextRequest) {
@@ -14,22 +14,33 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const items = await prisma.lsMotorRack.findMany({
-      where: {
-        OR: [
-          { itemCode: { contains: q.trim() } },
-          { itemName: { contains: q.trim() } },
-        ],
-      },
-      orderBy: {
-        itemCode: 'asc',
-      },
-    })
+    const searchTerm = `%${q.trim()}%`
+
+    const items = await executeQuery<LsMotorRack>(
+      `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+       FROM LS_MOTOR_RACK
+       WHERE UPPER(ITEM_CODE) LIKE UPPER(:searchTerm)
+          OR UPPER(ITEM_NAME) LIKE UPPER(:searchTerm)
+       ORDER BY ITEM_CODE ASC`,
+      { searchTerm }
+    )
+
+    // 컬럼명을 camelCase로 변환
+    const formattedItems = items.map(item => ({
+      id: item.ID,
+      storage: item.STORAGE,
+      location: item.LOCATION,
+      itemCode: item.ITEM_CODE,
+      itemName: item.ITEM_NAME,
+      nowQty: item.NOW_QTY,
+      inDay: item.IN_DAY,
+      remark: item.REMARK,
+    }))
 
     return NextResponse.json({
       success: true,
-      items,
-      count: items.length,
+      items: formattedItems,
+      count: formattedItems.length,
     })
   } catch (error) {
     console.error('Item search error:', error)

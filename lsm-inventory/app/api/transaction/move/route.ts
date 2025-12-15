@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/oracle'
+import oracledb from 'oracledb'
 
 // 재고 이동 (A 위치 → B 위치)
 export async function POST(request: NextRequest) {
@@ -15,15 +16,28 @@ export async function POST(request: NextRequest) {
     }
 
     // 원본 재고 조회
-    const sourceRack = await prisma.lsMotorRack.findUnique({
-      where: { id: rackId },
-    })
+    const sourceRows = await executeQuery<LsMotorRack>(
+      `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+       FROM LS_MOTOR_RACK WHERE ID = :id`,
+      { id: rackId }
+    )
 
-    if (!sourceRack) {
+    if (sourceRows.length === 0) {
       return NextResponse.json(
         { success: false, message: '원본 재고를 찾을 수 없습니다.' },
         { status: 404 }
       )
+    }
+
+    const sourceRack = {
+      id: sourceRows[0].ID,
+      storage: sourceRows[0].STORAGE,
+      location: sourceRows[0].LOCATION,
+      itemCode: sourceRows[0].ITEM_CODE,
+      itemName: sourceRows[0].ITEM_NAME,
+      nowQty: sourceRows[0].NOW_QTY,
+      inDay: sourceRows[0].IN_DAY,
+      remark: sourceRows[0].REMARK,
     }
 
     if (qty > sourceRack.nowQty) {
@@ -44,48 +58,55 @@ export async function POST(request: NextRequest) {
     const now = new Date()
 
     // 트랜잭션으로 이동 처리
-    await prisma.$transaction(async (tx) => {
+    await withTransaction(async (connection) => {
       // 1. 원본 재고 감소 또는 삭제
       if (qty === sourceRack.nowQty) {
         // 전체 이동이면 삭제
-        await tx.lsMotorRack.delete({
-          where: { id: rackId },
-        })
+        await connection.execute(
+          `DELETE FROM LS_MOTOR_RACK WHERE ID = :id`,
+          { id: rackId },
+          { autoCommit: false }
+        )
       } else {
         // 부분 이동이면 수량 감소
-        await tx.lsMotorRack.update({
-          where: { id: rackId },
-          data: { nowQty: sourceRack.nowQty - qty },
-        })
+        await connection.execute(
+          `UPDATE LS_MOTOR_RACK SET NOW_QTY = :nowQty WHERE ID = :id`,
+          { nowQty: sourceRack.nowQty - qty, id: rackId },
+          { autoCommit: false }
+        )
       }
 
       // 2. 목적지에 동일 품목이 있는지 확인
-      const existingTarget = await tx.lsMotorRack.findFirst({
-        where: {
-          storage: toStorage,
-          location: toLocation,
-          itemCode: sourceRack.itemCode,
-        },
-      })
+      const targetResult = await connection.execute<LsMotorRack>(
+        `SELECT ID, NOW_QTY FROM LS_MOTOR_RACK
+         WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
+        { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode },
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      )
+      const targetRows = targetResult.rows as LsMotorRack[]
+      const existingTarget = targetRows.length > 0 ? targetRows[0] : null
 
       // 출발지 수량 변경 정보
       const sourceBeforeQty = sourceRack.nowQty
       const sourceAfterQty = sourceRack.nowQty - qty
 
       // 목적지 수량 변경 정보
-      const targetBeforeQty = existingTarget ? existingTarget.nowQty : 0
+      const targetBeforeQty = existingTarget ? existingTarget.NOW_QTY : 0
       const targetAfterQty = targetBeforeQty + qty
 
       if (existingTarget) {
         // 기존 재고에 수량 추가
-        await tx.lsMotorRack.update({
-          where: { id: existingTarget.id },
-          data: { nowQty: existingTarget.nowQty + qty },
-        })
+        await connection.execute(
+          `UPDATE LS_MOTOR_RACK SET NOW_QTY = :nowQty WHERE ID = :id`,
+          { nowQty: existingTarget.NOW_QTY + qty, id: existingTarget.ID },
+          { autoCommit: false }
+        )
       } else {
         // 새 재고 생성
-        await tx.lsMotorRack.create({
-          data: {
+        await connection.execute(
+          `INSERT INTO LS_MOTOR_RACK (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
+           VALUES (:storage, :location, :itemCode, :itemName, :nowQty, :inDay, :remark)`,
+          {
             storage: toStorage,
             location: toLocation,
             itemCode: sourceRack.itemCode,
@@ -94,13 +115,16 @@ export async function POST(request: NextRequest) {
             inDay: sourceRack.inDay,
             remark: sourceRack.remark,
           },
-        })
+          { autoCommit: false }
+        )
       }
 
       // 3. 이동 이력 기록 (출고)
       const sourceRemark = `→ ${toLocation} (${toStorage}) [${sourceBeforeQty}개 → ${sourceAfterQty}개]`
-      await tx.lsMotorSubul.create({
-        data: {
+      await connection.execute(
+        `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+         VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
+        {
           storage: sourceRack.storage,
           location: sourceRack.location,
           itemCode: sourceRack.itemCode,
@@ -109,16 +133,19 @@ export async function POST(request: NextRequest) {
           category: '이동(출)',
           subulTime: now,
           remark: sourceRemark,
-          user: user || 'mobile',
+          userId: user || 'mobile',
         },
-      })
+        { autoCommit: false }
+      )
 
       // 4. 이동 이력 기록 (입고)
       const targetRemark = existingTarget
         ? `← ${sourceRack.location} (${sourceRack.storage}) [${targetBeforeQty}개 → ${targetAfterQty}개]`
         : `← ${sourceRack.location} (${sourceRack.storage}) [신규]`
-      await tx.lsMotorSubul.create({
-        data: {
+      await connection.execute(
+        `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+         VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
+        {
           storage: toStorage,
           location: toLocation,
           itemCode: sourceRack.itemCode,
@@ -127,9 +154,10 @@ export async function POST(request: NextRequest) {
           category: '이동(입)',
           subulTime: now,
           remark: targetRemark,
-          user: user || 'mobile',
+          userId: user || 'mobile',
         },
-      })
+        { autoCommit: false }
+      )
     })
 
     return NextResponse.json({

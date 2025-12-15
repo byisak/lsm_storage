@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { executeQuery, executeInsert, executeUpdate, executeDelete, withTransaction, LsMotorRack } from '@/lib/oracle'
+import oracledb from 'oracledb'
 
 // 수정 내역 문자열 생성 함수
 function buildChangeDescription(
@@ -30,8 +31,8 @@ function buildChangeDescription(
     changes.push(`수량: ${existing.nowQty} → ${updated.nowQty}`)
   }
   if (updated.inDay !== undefined) {
-    const existingDate = existing.inDay ? existing.inDay.toISOString().split('T')[0] : '없음'
-    const updatedDate = updated.inDay ? updated.inDay.toISOString().split('T')[0] : '없음'
+    const existingDate = existing.inDay ? new Date(existing.inDay).toISOString().split('T')[0] : '없음'
+    const updatedDate = updated.inDay ? new Date(updated.inDay).toISOString().split('T')[0] : '없음'
     if (existingDate !== updatedDate) {
       changes.push(`입고일: ${existingDate} → ${updatedDate}`)
     }
@@ -59,15 +60,28 @@ export async function PUT(request: NextRequest) {
     }
 
     // 기존 재고 확인
-    const existingRack = await prisma.lsMotorRack.findUnique({
-      where: { id },
-    })
+    const existingRows = await executeQuery<LsMotorRack>(
+      `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+       FROM LS_MOTOR_RACK WHERE ID = :id`,
+      { id }
+    )
 
-    if (!existingRack) {
+    if (existingRows.length === 0) {
       return NextResponse.json(
         { success: false, message: '해당 재고를 찾을 수 없습니다.' },
         { status: 404 }
       )
+    }
+
+    const existingRack = {
+      id: existingRows[0].ID,
+      storage: existingRows[0].STORAGE,
+      location: existingRows[0].LOCATION,
+      itemCode: existingRows[0].ITEM_CODE,
+      itemName: existingRows[0].ITEM_NAME,
+      nowQty: existingRows[0].NOW_QTY,
+      inDay: existingRows[0].IN_DAY,
+      remark: existingRows[0].REMARK,
     }
 
     // 수정 데이터 구성
@@ -89,11 +103,12 @@ export async function PUT(request: NextRequest) {
 
     // 수량이 0이면 삭제
     if (updateData.nowQty === 0) {
-      // 트랜잭션으로 삭제 및 이력 기록
-      await prisma.$transaction(async (tx) => {
+      await withTransaction(async (connection) => {
         // 삭제 이력 기록
-        await tx.lsMotorSubul.create({
-          data: {
+        await connection.execute(
+          `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+           VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
+          {
             storage: existingRack.storage,
             location: existingRack.location,
             itemCode: existingRack.itemCode,
@@ -101,15 +116,18 @@ export async function PUT(request: NextRequest) {
             qty: existingRack.nowQty,
             category: '수정(삭제)',
             subulTime: now,
-            remark: `수량 0으로 수정하여 삭제됨`,
-            user: user || 'mobile',
+            remark: '수량 0으로 수정하여 삭제됨',
+            userId: user || 'mobile',
           },
-        })
+          { autoCommit: false }
+        )
 
         // 재고 삭제
-        await tx.lsMotorRack.delete({
-          where: { id },
-        })
+        await connection.execute(
+          `DELETE FROM LS_MOTOR_RACK WHERE ID = :id`,
+          { id },
+          { autoCommit: false }
+        )
       })
 
       return NextResponse.json({
@@ -123,42 +141,89 @@ export async function PUT(request: NextRequest) {
     const changeDescription = buildChangeDescription(existingRack, updateData)
 
     // 트랜잭션으로 업데이트 및 이력 기록
-    const updatedRack = await prisma.$transaction(async (tx) => {
+    const updatedRack = await withTransaction(async (connection) => {
       // 재고 업데이트
-      const rack = await tx.lsMotorRack.update({
-        where: { id },
-        data: updateData,
-      })
+      const updateFields: string[] = []
+      const updateBinds: { [key: string]: unknown } = { id }
+
+      if (updateData.itemCode !== undefined) {
+        updateFields.push('ITEM_CODE = :itemCode')
+        updateBinds.itemCode = updateData.itemCode
+      }
+      if (updateData.itemName !== undefined) {
+        updateFields.push('ITEM_NAME = :itemName')
+        updateBinds.itemName = updateData.itemName
+      }
+      if (updateData.nowQty !== undefined) {
+        updateFields.push('NOW_QTY = :nowQty')
+        updateBinds.nowQty = updateData.nowQty
+      }
+      if (updateData.inDay !== undefined) {
+        updateFields.push('IN_DAY = :inDay')
+        updateBinds.inDay = updateData.inDay
+      }
+      if (updateData.remark !== undefined) {
+        updateFields.push('REMARK = :remark')
+        updateBinds.remark = updateData.remark
+      }
+
+      if (updateFields.length > 0) {
+        await connection.execute(
+          `UPDATE LS_MOTOR_RACK SET ${updateFields.join(', ')} WHERE ID = :id`,
+          updateBinds as oracledb.BindParameters,
+          { autoCommit: false }
+        )
+      }
 
       // 수정 이력 기록 (변경사항이 있을 때만)
       if (changeDescription !== '변경사항 없음') {
-        // 수량 변경인 경우 수량 차이 기록
         const qtyDiff = updateData.nowQty !== undefined
           ? updateData.nowQty - existingRack.nowQty
           : 0
 
-        await tx.lsMotorSubul.create({
-          data: {
-            storage: rack.storage,
-            location: rack.location,
-            itemCode: rack.itemCode,
-            itemName: rack.itemName,
+        await connection.execute(
+          `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+           VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
+          {
+            storage: existingRack.storage,
+            location: existingRack.location,
+            itemCode: updateData.itemCode || existingRack.itemCode,
+            itemName: updateData.itemName || existingRack.itemName,
             qty: Math.abs(qtyDiff) || 0,
             category: '수정',
             subulTime: now,
             remark: changeDescription,
-            user: user || 'mobile',
+            userId: user || 'mobile',
           },
-        })
+          { autoCommit: false }
+        )
       }
 
-      return rack
+      // 업데이트된 데이터 조회
+      const result = await connection.execute<LsMotorRack>(
+        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+         FROM LS_MOTOR_RACK WHERE ID = :id`,
+        { id },
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      )
+
+      const rows = result.rows as LsMotorRack[]
+      return rows[0]
     })
 
     return NextResponse.json({
       success: true,
       message: '재고가 수정되었습니다.',
-      data: updatedRack,
+      data: updatedRack ? {
+        id: updatedRack.ID,
+        storage: updatedRack.STORAGE,
+        location: updatedRack.LOCATION,
+        itemCode: updatedRack.ITEM_CODE,
+        itemName: updatedRack.ITEM_NAME,
+        nowQty: updatedRack.NOW_QTY,
+        inDay: updatedRack.IN_DAY,
+        remark: updatedRack.REMARK,
+      } : null,
     })
   } catch (error) {
     console.error('Rack update error:', error)

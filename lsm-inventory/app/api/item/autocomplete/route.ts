@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { executeQuery, LsMotorItem } from '@/lib/oracle'
 import { matchChosung } from '@/lib/korean-utils'
 
 export async function GET(request: NextRequest) {
@@ -11,23 +11,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, items: [] })
     }
 
-    // 모든 품목 가져오기 (캐싱 고려 필요시 추가)
-    const allItems = await prisma.lsMotorItem.findMany({
-      select: {
-        itemCode: true,
-        itemName: true,
-      },
-    })
+    // 모든 품목 가져오기
+    const allItems = await executeQuery<LsMotorItem>(
+      `SELECT ITEM_CODE, ITEM_NAME FROM LS_MOTOR_ITEM`
+    )
 
     // 초성 검색 및 일반 검색
     const filtered = allItems.filter(item => {
-      const codeMatch = item.itemCode.toLowerCase().includes(query.toLowerCase())
-      const nameMatch = matchChosung(item.itemName, query)
+      const codeMatch = item.ITEM_CODE.toLowerCase().includes(query.toLowerCase())
+      const nameMatch = matchChosung(item.ITEM_NAME, query)
       return codeMatch || nameMatch
     })
 
-    // 최대 10개만 반환
-    const items = filtered.slice(0, 10)
+    // 최대 10개만 반환 (camelCase 변환)
+    const items = filtered.slice(0, 10).map(item => ({
+      itemCode: item.ITEM_CODE,
+      itemName: item.ITEM_NAME,
+    }))
 
     return NextResponse.json({ success: true, items })
   } catch (error) {
