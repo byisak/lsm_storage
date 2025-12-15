@@ -4,6 +4,7 @@ import "./globals.css";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { AuthProvider } from "@/lib/auth-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,11 +44,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <MobileHeader />
-          <main className="pt-14 pb-20 min-h-screen">
-            {children}
-          </main>
-          <BottomNav />
+          <AuthProvider>
+            <MobileHeader />
+            <main className="pt-14 pb-20 min-h-screen">
+              {children}
+            </main>
+            <BottomNav />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

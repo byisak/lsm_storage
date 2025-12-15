@@ -163,3 +163,15 @@ export interface LsMotorItem {
   ERP_INVENTORY11: number
   SHORTAGE: number
 }
+
+export interface LsUser {
+  ID: number
+  NAME: string
+  EMAIL: string
+  PASSWORD: string
+  STATUS: 'PENDING' | 'APPROVED' | 'REJECTED'
+  ROLE: 'USER' | 'ADMIN'
+  CREATED_AT: Date
+  APPROVED_AT: Date | null
+  APPROVED_BY: number | null
+}

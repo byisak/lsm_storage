@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, ChevronRight, User, LogIn } from 'lucide-react'
+import { useEffect } from 'react'
+import { X, ChevronRight, User, LogOut } from 'lucide-react'
 import Link from 'next/link'
+import { useAuth } from '@/lib/auth-context'
 
 interface SidebarProps {
   isOpen: boolean
@@ -10,6 +11,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const { user, logout } = useAuth()
+
   // ESC 키로 닫기
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -24,6 +27,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       document.body.style.overflow = ''
     }
   }, [isOpen, onClose])
+
+  const handleLogout = async () => {
+    onClose()
+    await logout()
+  }
 
   if (!isOpen) return null
 
@@ -50,21 +58,41 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* 컨텐츠 */}
         <div className="p-4 space-y-4">
-          {/* 로그인/회원가입 카드 */}
-          <Link href="/auth/login" onClick={onClose}>
-            <div className="bg-zinc-800 dark:bg-zinc-900 rounded-2xl p-4 flex items-center justify-between group hover:bg-zinc-700 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="bg-zinc-700 dark:bg-zinc-800 p-2 rounded-full">
-                  <User className="w-5 h-5 text-zinc-400" />
+          {/* 사용자 카드 */}
+          {user ? (
+            // 로그인 상태
+            <div className="bg-zinc-800 dark:bg-zinc-900 rounded-2xl p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="bg-orange-500 p-2 rounded-full">
+                  <User className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-orange-500 font-bold text-base">로그인/회원가입</h3>
-                  <p className="text-zinc-400 text-sm mt-0.5">로그인하여 실시간 서버 전송을 이용해보세요</p>
+                  <h3 className="text-white font-bold text-base">{user.name}</h3>
+                  <p className="text-zinc-400 text-sm">{user.email}</p>
                 </div>
               </div>
-              <ChevronRight className="w-6 h-6 text-orange-500 group-hover:translate-x-1 transition-transform" />
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-xl text-zinc-300 text-sm transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                로그아웃
+              </button>
             </div>
-          </Link>
+          ) : (
+            // 비로그인 상태
+            <Link href="/auth/login" onClick={onClose}>
+              <div className="bg-zinc-800 dark:bg-zinc-900 rounded-2xl p-4 flex items-center justify-between group hover:bg-zinc-700 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="bg-zinc-700 dark:bg-zinc-800 p-2 rounded-full">
+                    <User className="w-5 h-5 text-zinc-400" />
+                  </div>
+                  <h3 className="text-orange-500 font-bold text-base">로그인/회원가입</h3>
+                </div>
+                <ChevronRight className="w-6 h-6 text-orange-500 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+          )}
 
           {/* 구분선 */}
           <div className="border-t border-border my-4" />
