@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model LsMotorRack {
+  id        Int       @id @default(autoincrement())
+  storage   String
+  location  String    @map("Location")
+  itemCode  String
+  itemName  String
+  nowQty    Int       @map("Now_Qty")
+  inDay     DateTime? @map("In_day")
+  remark    String?   @map("Remark")
+
+  @@map("ls_motor_rack")
+}
+
+model LsMotorSubul {
+  id        Int      @id @default(autoincrement())
+  location  String   @map("Location")
+  itemCode  String
+  itemName  String
+  qty       Int      @map("Qty")
+  category  String
+  subulTime DateTime @map("Subul_Time")
+  remark    String?  @map("Remark")
+  storage   String
+  user      String
+
+  @@map("ls_motor_subul")
+}
+
+model LsMotorItem {
+  idx             Int     @id @default(autoincrement())
+  storage         String
+  itemCode        String
+  erpReservation  Int     @default(0) @map("ERP_reservation")
+  erpInventory10  Int     @default(0) @map("ERP_Inventory10")
+  erpInventory11  Int     @default(0) @map("ERP_Inventory11")
+  shortage        Int     @default(0) @map("Shortage")
+  itemName        String
+
+  @@map("ls_motor_item")
+}
