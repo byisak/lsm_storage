@@ -143,12 +143,12 @@ function HomeContent() {
           if (scanParam.includes('|')) {
             // QR 형식: "1|A-01-A2" → 창고ID|위치
             const [storageId, locationPart] = scanParam.split('|')
-            const storageName = getWarehouseName(storageId) // 창고 ID를 이름으로 변환
             const location = expandLocation(locationPart)
 
             setCurrentSearchQuery(location)
 
-            const res = await fetch(`/api/rack/scan?storage=${encodeURIComponent(storageName)}&location=${encodeURIComponent(location)}`)
+            // DB에는 창고 ID로 저장되어 있으므로 ID를 그대로 전달
+            const res = await fetch(`/api/rack/scan?storage=${encodeURIComponent(storageId)}&location=${encodeURIComponent(location)}`)
             const data = await res.json()
             if (data.success) {
               setItems(data.items)
