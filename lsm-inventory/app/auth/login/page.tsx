@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Mail, Lock, Loader2, AlertCircle, Box } from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -21,23 +23,16 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-      const data = await res.json()
+      const data = await login(email, password)
 
-      if (data.success) {
-        router.push('/')
-        router.refresh()
-      } else {
+      if (!data.success) {
         if (data.status === 'PENDING') {
           router.push('/auth/pending')
         } else {
           setError(data.message)
         }
       }
+      // 성공 시 login 함수 내부에서 리다이렉트 처리됨
     } catch {
       setError('로그인 중 오류가 발생했습니다.')
     } finally {
