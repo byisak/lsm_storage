@@ -43,7 +43,7 @@ COMMENT ON COLUMN LS_USERS.APPROVED_BY IS '승인자 ID';
 -- 관리자 계정 (비밀번호: admin123 - 실제 운영시 변경 필요)
 -- 비밀번호는 bcrypt 해시로 저장됨
 INSERT INTO LS_USERS (NAME, EMAIL, PASSWORD, STATUS, ROLE)
-VALUES ('관리자', 'admin@lsmecapion.com', '$2b$10$placeholder', 'APPROVED', 'ADMIN');
+VALUES ('관리자', 'admin@lsmecapion.com', '$2b$10$zkUDk29iHQ0neLn9dehqzulJpjg/fFjXSNf7WW4vqlqP1ZgkQZo/u', 'APPROVED', 'ADMIN');
 
 -- ============================================================
 -- 1. 재고 마스터 테이블 (ls_motor_rack)
