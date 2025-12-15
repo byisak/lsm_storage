@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -43,8 +43,9 @@ interface LocationSuggestion {
   storage: string
 }
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<SearchTab>('item')
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<RackItem[]>([])
@@ -116,6 +117,54 @@ export default function Home() {
   useEffect(() => {
     setWarehouses(getWarehouses())
   }, [])
+
+  // URL 파라미터로 QR 스캔 자동 검색
+  useEffect(() => {
+    const scanParam = searchParams.get('scan')
+    if (scanParam) {
+      // 랙 검색 탭으로 전환하고 자동 검색
+      setActiveTab('rack')
+      setQuery(scanParam)
+
+      // 검색 실행
+      const doSearch = async () => {
+        const q = expandLocation(scanParam)
+        setHasSearched(true)
+        setShowLocationSuggestions(false)
+        setLocationSuggestions([])
+        setLoading(true)
+        setSearched(true)
+        setCurrentSearchQuery(q)
+
+        try {
+          if (q.includes('|')) {
+            const res = await fetch(`/api/rack/scan?q=${encodeURIComponent(q)}`)
+            const data = await res.json()
+            if (data.success) {
+              setItems(data.items)
+              setSearchedLocation({ storage: data.storage, location: data.location })
+            }
+          } else {
+            const res = await fetch(`/api/rack/search?location=${encodeURIComponent(q)}`)
+            const data = await res.json()
+            if (data.success) {
+              setItems(data.items)
+              setSearchedLocation(null)
+            }
+          }
+        } catch (error) {
+          console.error('Rack search error:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      doSearch()
+
+      // URL에서 scan 파라미터 제거 (히스토리 유지)
+      router.replace('/', { scroll: false })
+    }
+  }, [searchParams, router])
 
   // 품목코드 자동완성 검색
   useEffect(() => {
@@ -1401,5 +1450,14 @@ export default function Home() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+// Suspense로 감싸서 useSearchParams 사용 가능하게
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="p-4 text-center">로딩 중...</div>}>
+      <HomeContent />
+    </Suspense>
   )
 }
