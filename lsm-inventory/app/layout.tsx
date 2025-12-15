@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { MobileHeader } from "@/components/layout/MobileHeader";
-import { BottomNav } from "@/components/layout/BottomNav";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { AuthProvider } from "@/lib/auth-context";
+import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,11 +44,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <MobileHeader />
-            <main className="pt-14 pb-20 min-h-screen">
+            <LayoutWrapper>
               {children}
-            </main>
-            <BottomNav />
+            </LayoutWrapper>
           </AuthProvider>
         </ThemeProvider>
       </body>
