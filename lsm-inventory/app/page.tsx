@@ -14,12 +14,13 @@ import {
 } from '@/components/ui/dialog'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Search, Loader2, Package, MapPin, Warehouse, Calendar as CalendarIcon, PackageSearch, ArrowUpFromLine, Pencil, CheckCircle2, XCircle, PackageX, PackagePlus, MoveRight, ChevronDown, AlertTriangle } from 'lucide-react'
+import { Search, Loader2, Package, MapPin, Warehouse, Calendar as CalendarIcon, PackageSearch, ArrowUpFromLine, Pencil, CheckCircle2, XCircle, PackageX, PackagePlus, MoveRight, ChevronDown, AlertTriangle, Clock } from 'lucide-react'
 import { useWarehouses, WarehouseConfig } from '@/lib/warehouse-context'
 import { useAuth } from '@/lib/auth-context'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
+import { getItemSearchHistory, addItemSearchHistory, getRackSearchHistory, addRackSearchHistory } from '@/lib/search-history'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -79,6 +80,10 @@ function HomeContent() {
   const [currentSearchQuery, setCurrentSearchQuery] = useState('')
   const locationInputRef = useRef<HTMLInputElement>(null)
   const locationSuggestionsRef = useRef<HTMLDivElement>(null)
+
+  // 검색 기록 상태
+  const [itemSearchHistory, setItemSearchHistory] = useState<string[]>([])
+  const [rackSearchHistory, setRackSearchHistory] = useState<string[]>([])
 
   // 출고 모달 상태
   const [outboundItem, setOutboundItem] = useState<RackItem | null>(null)
@@ -206,6 +211,12 @@ function HomeContent() {
       router.replace('/', { scroll: false })
     }
   }, [searchParams, router])
+
+  // 검색 기록 로드 (컴포넌트 마운트 시)
+  useEffect(() => {
+    setItemSearchHistory(getItemSearchHistory())
+    setRackSearchHistory(getRackSearchHistory())
+  }, [])
 
   // 품목코드 자동완성 검색
   useEffect(() => {
@@ -433,6 +444,11 @@ function HomeContent() {
     setSuggestions([])
     setLoading(true)
     setSearched(true)
+
+    // 검색 기록 저장
+    const updatedHistory = addItemSearchHistory(q)
+    setItemSearchHistory(updatedHistory)
+
     try {
       const res = await fetch(`/api/item/search?q=${encodeURIComponent(q)}`)
       const data = await res.json()
@@ -460,6 +476,10 @@ function HomeContent() {
     setLoading(true)
     setSearched(true)
     setCurrentSearchQuery(q)
+
+    // 검색 기록 저장
+    const updatedHistory = addRackSearchHistory(q)
+    setRackSearchHistory(updatedHistory)
 
     try {
       if (q.includes('|')) {
@@ -994,6 +1014,30 @@ function HomeContent() {
                 ))}
               </div>
             )}
+
+            {/* 품목 최근 검색 기록 */}
+            {!showSuggestions && !hasSearched && itemSearchHistory.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  최근 검색
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {itemSearchHistory.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setQuery(item)
+                        handleItemSearch(item)
+                      }}
+                      className="px-3 py-1.5 text-sm bg-muted hover:bg-accent rounded-lg text-foreground transition-colors"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1054,6 +1098,30 @@ function HomeContent() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* 랙 최근 검색 기록 */}
+            {!showLocationSuggestions && !expandedHint && !hasSearched && rackSearchHistory.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  최근 검색
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {rackSearchHistory.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setQuery(item)
+                        handleRackSearch(item)
+                      }}
+                      className="px-3 py-1.5 text-sm bg-muted hover:bg-accent rounded-lg text-foreground transition-colors"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
