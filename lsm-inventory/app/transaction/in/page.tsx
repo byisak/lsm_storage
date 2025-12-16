@@ -434,7 +434,7 @@ function TransactionInContent() {
                           index === locationSelectedIndex ? 'bg-accent' : 'hover:bg-muted'
                         }`}
                       >
-                        <span className="text-primary font-mono text-sm">{item.location}</span>
+                        <span className="text-primary text-sm font-semibold">{item.location}</span>
                         <span className="text-muted-foreground text-xs ml-2">({item.storage})</span>
                       </div>
                     ))}
@@ -463,7 +463,7 @@ function TransactionInContent() {
                           onClick={() => handleSelectRecentLocation(loc)}
                           className="px-3 py-2.5 cursor-pointer border-b border-border last:border-b-0 hover:bg-accent"
                         >
-                          <span className="text-primary font-mono text-sm">{loc.location}</span>
+                          <span className="text-primary text-sm font-semibold">{loc.location}</span>
                           <span className="text-muted-foreground text-xs ml-2">({loc.storage})</span>
                         </div>
                       ))}
@@ -509,7 +509,7 @@ function TransactionInContent() {
                           index === selectedIndex ? 'bg-accent' : 'hover:bg-muted'
                         }`}
                       >
-                        <span className="text-primary font-mono text-sm">{item.itemCode}</span>
+                        <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
                         <p className="text-foreground text-sm mt-0.5">{item.itemName}</p>
                       </div>
                     ))}
@@ -538,7 +538,7 @@ function TransactionInContent() {
                           onClick={() => handleSelectRecentItem(item)}
                           className="px-3 py-2.5 cursor-pointer border-b border-border last:border-b-0 hover:bg-accent"
                         >
-                          <span className="text-primary font-mono text-sm">{item.itemCode}</span>
+                          <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
                           <p className="text-muted-foreground text-xs mt-0.5 truncate">{item.itemName}</p>
                         </div>
                       ))}

@@ -145,7 +145,7 @@ export default function TransactionHistoryPage() {
                     </div>
 
                     <p className="font-medium text-foreground mt-1 truncate">{item.itemName}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{item.itemCode}</p>
+                    <p className="text-xs text-muted-foreground">{item.itemCode}</p>
 
                     <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">

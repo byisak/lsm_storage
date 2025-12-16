@@ -884,7 +884,7 @@ function HomeContent() {
                       index === selectedIndex ? 'bg-accent' : 'hover:bg-muted'
                     }`}
                   >
-                    <span className="text-primary font-mono text-sm">{item.itemCode}</span>
+                    <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
                     <p className="text-foreground text-sm mt-0.5">{item.itemName}</p>
                   </div>
                 ))}
@@ -1022,7 +1022,7 @@ function HomeContent() {
                   <div className="p-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-foreground text-base font-mono">{item.itemCode}</p>
+                        <p className="font-bold text-foreground text-base">{item.itemCode}</p>
                         <p className="text-muted-foreground mt-0.5 text-xs truncate">{item.itemName}</p>
 
                         <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
@@ -1217,7 +1217,7 @@ function HomeContent() {
                           index === editSelectedIndex ? 'bg-accent' : 'hover:bg-muted'
                         }`}
                       >
-                        <span className="text-primary font-mono text-sm">{item.itemCode}</span>
+                        <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
                         <p className="text-foreground text-xs mt-0.5 truncate">{item.itemName}</p>
                       </div>
                     ))}
@@ -1401,7 +1401,7 @@ function HomeContent() {
                           index === moveLocationSelectedIndex ? 'bg-accent' : 'hover:bg-muted'
                         }`}
                       >
-                        <span className="text-primary font-mono text-sm">{suggestion.location}</span>
+                        <span className="text-primary text-sm font-semibold">{suggestion.location}</span>
                         <span className="text-muted-foreground text-xs ml-2">({suggestion.storage})</span>
                       </div>
                     ))}

@@ -178,7 +178,7 @@ export default function WarehouseSettingsPage() {
                     value={warehouse.id}
                     onChange={(e) => handleChange(index, 'id', e.target.value)}
                     placeholder="번호"
-                    className="h-11 text-center font-mono rounded-lg"
+                    className="h-11 text-center rounded-lg"
                     disabled={!warehouse.isNew}
                   />
                 </div>
