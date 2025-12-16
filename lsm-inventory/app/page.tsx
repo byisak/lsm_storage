@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Search, Loader2, Package, MapPin, Warehouse, Calendar as CalendarIcon, PackageSearch, ArrowUpFromLine, Pencil, CheckCircle2, XCircle, PackageX, PackagePlus, MoveRight, ChevronDown } from 'lucide-react'
+import { Search, Loader2, Package, MapPin, Warehouse, Calendar as CalendarIcon, PackageSearch, ArrowUpFromLine, Pencil, CheckCircle2, XCircle, PackageX, PackagePlus, MoveRight, ChevronDown, AlertTriangle } from 'lucide-react'
 import { useWarehouses, WarehouseConfig } from '@/lib/warehouse-context'
 import { useAuth } from '@/lib/auth-context'
 import { format } from 'date-fns'
@@ -104,6 +104,22 @@ function HomeContent() {
   })
   const [moveLoading, setMoveLoading] = useState(false)
   const [moveMessage, setMoveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // 이동 병합 확인 모달 상태
+  const [showMoveMergeModal, setShowMoveMergeModal] = useState(false)
+  const [moveMergeInfo, setMoveMergeInfo] = useState<{
+    existingItem: { id: number; currentQty: number; itemName: string }
+    moveQty: number
+    mergedQty: number
+  } | null>(null)
+  const [moveMergeLoading, setMoveMergeLoading] = useState(false)
+  const [pendingMoveData, setPendingMoveData] = useState<{
+    rackId: number
+    toStorage: string
+    toLocation: string
+    qty: number
+    user: string
+  } | null>(null)
 
   // 이동 모달 위치 자동완성 상태
   const [moveLocationSuggestions, setMoveLocationSuggestions] = useState<LocationSuggestion[]>([])
@@ -735,18 +751,20 @@ function HomeContent() {
       ? expandLocation(moveForm.toLocation)
       : moveForm.toLocation
 
+    const moveData = {
+      rackId: moveItem.id,
+      toStorage: moveForm.toStorage,
+      toLocation: finalLocation,
+      qty,
+      user: user?.name || '익명',
+    }
+
     setMoveLoading(true)
     try {
       const res = await fetch('/api/transaction/move', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rackId: moveItem.id,
-          toStorage: moveForm.toStorage,
-          toLocation: finalLocation,
-          qty,
-          user: user?.name || '익명',
-        }),
+        body: JSON.stringify(moveData),
       })
       const data = await res.json()
       if (data.success) {
@@ -758,6 +776,15 @@ function HomeContent() {
             : item
         ).filter(item => item.nowQty > 0))
         setTimeout(() => setMoveItem(null), 1500)
+      } else if (data.canMerge) {
+        // 병합 가능한 경우 모달 표시
+        setMoveMergeInfo({
+          existingItem: data.existingItem,
+          moveQty: data.moveQty,
+          mergedQty: data.mergedQty,
+        })
+        setPendingMoveData(moveData)
+        setShowMoveMergeModal(true)
       } else {
         setMoveMessage({ type: 'error', text: data.message })
       }
@@ -766,6 +793,50 @@ function HomeContent() {
     } finally {
       setMoveLoading(false)
     }
+  }
+
+  // 이동 병합 확인 처리
+  const handleMoveMergeConfirm = async () => {
+    if (!pendingMoveData || !moveItem) return
+
+    setMoveMergeLoading(true)
+    try {
+      const res = await fetch('/api/transaction/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...pendingMoveData,
+          merge: true,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setMoveMessage({ type: 'success', text: data.message })
+        // 목록 업데이트
+        setItems(prev => prev.map(item =>
+          item.id === moveItem.id
+            ? { ...item, nowQty: item.nowQty - pendingMoveData.qty }
+            : item
+        ).filter(item => item.nowQty > 0))
+        setTimeout(() => setMoveItem(null), 1500)
+      } else {
+        setMoveMessage({ type: 'error', text: data.message })
+      }
+    } catch {
+      setMoveMessage({ type: 'error', text: '병합 처리 중 오류가 발생했습니다' })
+    } finally {
+      setMoveMergeLoading(false)
+      setShowMoveMergeModal(false)
+      setMoveMergeInfo(null)
+      setPendingMoveData(null)
+    }
+  }
+
+  // 이동 병합 취소
+  const handleMoveMergeCancel = () => {
+    setShowMoveMergeModal(false)
+    setMoveMergeInfo(null)
+    setPendingMoveData(null)
   }
 
   // 수정 처리
@@ -1461,6 +1532,72 @@ function HomeContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 이동 병합 확인 모달 */}
+      {showMoveMergeModal && moveMergeInfo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h3 className="font-bold text-lg text-foreground">수량 병합 확인</h3>
+              </div>
+
+              <p className="text-muted-foreground text-sm mb-4">
+                이동 위치에 동일한 품목이 이미 존재합니다.<br />
+                수량을 병합하시겠습니까?
+              </p>
+
+              <div className="bg-muted rounded-xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">품목명</span>
+                  <span className="font-medium text-foreground">{moveMergeInfo.existingItem.itemName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">기존 수량</span>
+                  <span className="font-medium text-foreground">{moveMergeInfo.existingItem.currentQty}개</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">이동 수량</span>
+                  <span className="font-medium text-teal-600">+{moveMergeInfo.moveQty}개</span>
+                </div>
+                <div className="border-t border-border pt-2 mt-2">
+                  <div className="flex justify-between">
+                    <span className="font-medium text-foreground">병합 후 수량</span>
+                    <span className="font-bold text-primary">{moveMergeInfo.mergedQty}개</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex border-t border-border">
+              <button
+                onClick={handleMoveMergeCancel}
+                disabled={moveMergeLoading}
+                className="flex-1 py-3.5 text-muted-foreground font-medium hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleMoveMergeConfirm}
+                disabled={moveMergeLoading}
+                className="flex-1 py-3.5 text-teal-600 font-medium hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors border-l border-border disabled:opacity-50"
+              >
+                {moveMergeLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    처리 중...
+                  </span>
+                ) : (
+                  '병합'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

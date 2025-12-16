@@ -6,7 +6,7 @@ import oracledb from 'oracledb'
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
-    const { rackId, toStorage, toLocation, qty, user } = data
+    const { rackId, toStorage, toLocation, qty, user, merge } = data
 
     if (!rackId || !toStorage || !toLocation || !qty) {
       return NextResponse.json(
@@ -53,6 +53,30 @@ export async function POST(request: NextRequest) {
         { success: false, message: '같은 위치로는 이동할 수 없습니다.' },
         { status: 400 }
       )
+    }
+
+    // 목적지에 동일 품목이 있는지 미리 확인 (병합 확인용)
+    const existingTarget = await executeQuery<LsMotorRack>(
+      `SELECT ID, NOW_QTY, ITEM_NAME FROM LS_MOTOR_RACK
+       WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
+      { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
+    )
+
+    // 목적지에 동일 품목이 있고 merge 파라미터가 없으면 확인 요청
+    if (existingTarget.length > 0 && !merge) {
+      const targetItem = existingTarget[0]
+      return NextResponse.json({
+        success: false,
+        canMerge: true,
+        message: '이동 위치에 동일한 품목이 이미 존재합니다. 수량을 병합하시겠습니까?',
+        existingItem: {
+          id: targetItem.ID,
+          currentQty: targetItem.NOW_QTY,
+          itemName: targetItem.ITEM_NAME,
+        },
+        moveQty: qty,
+        mergedQty: targetItem.NOW_QTY + qty,
+      })
     }
 
     const now = new Date()

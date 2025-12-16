@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Warehouse, MapPin, Package, Hash, FileText, Loader2, CheckCircle2, XCircle, ChevronDown, History } from 'lucide-react'
+import { Warehouse, MapPin, Package, Hash, FileText, Loader2, CheckCircle2, XCircle, ChevronDown, History, AlertTriangle } from 'lucide-react'
 import { useWarehouses } from '@/lib/warehouse-context'
 import { useAuth } from '@/lib/auth-context'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
@@ -18,6 +18,16 @@ interface AutocompleteItem {
 interface LocationSuggestion {
   location: string
   storage: string
+}
+
+interface MergeInfo {
+  existingItem: {
+    id: number
+    currentQty: number
+    itemName: string
+  }
+  newQty: number
+  mergedQty: number
 }
 
 function TransactionInContent() {
@@ -35,6 +45,20 @@ function TransactionInContent() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [prefilledLocation, setPrefilledLocation] = useState<string | null>(null)
+
+  // 병합 확인 모달 상태
+  const [showMergeModal, setShowMergeModal] = useState(false)
+  const [mergeInfo, setMergeInfo] = useState<MergeInfo | null>(null)
+  const [mergeLoading, setMergeLoading] = useState(false)
+  const [pendingFormData, setPendingFormData] = useState<{
+    storage: string
+    location: string
+    itemCode: string
+    itemName: string
+    qty: number
+    remark: string
+    user: string
+  } | null>(null)
 
   // 품목코드 자동완성 관련 상태
   const [suggestions, setSuggestions] = useState<AutocompleteItem[]>([])
@@ -310,15 +334,63 @@ function TransactionInContent() {
       ? expandLocation(formData.location)
       : formData.location
 
+    const submitData = {
+      ...formData,
+      location: finalLocation,
+      qty: parseInt(formData.qty),
+      user: user?.name || '익명',
+    }
+
+    try {
+      const res = await fetch('/api/transaction/in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submitData),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setMessage({ type: 'success', text: data.message })
+        setFormData({
+          storage: formData.storage,
+          location: '',
+          itemCode: '',
+          itemName: '',
+          qty: '',
+          remark: '',
+        })
+      } else if (data.canMerge) {
+        // 병합 가능한 경우 모달 표시
+        setMergeInfo({
+          existingItem: data.existingItem,
+          newQty: data.newQty,
+          mergedQty: data.mergedQty,
+        })
+        setPendingFormData(submitData)
+        setShowMergeModal(true)
+      } else {
+        setMessage({ type: 'error', text: data.message })
+      }
+    } catch {
+      setMessage({ type: 'error', text: '오류가 발생했습니다.' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 병합 확인 처리
+  const handleMergeConfirm = async () => {
+    if (!pendingFormData) return
+
+    setMergeLoading(true)
     try {
       const res = await fetch('/api/transaction/in', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
-          location: finalLocation,
-          qty: parseInt(formData.qty),
-          user: user?.name || '익명',
+          ...pendingFormData,
+          merge: true,
         }),
       })
 
@@ -338,10 +410,20 @@ function TransactionInContent() {
         setMessage({ type: 'error', text: data.message })
       }
     } catch {
-      setMessage({ type: 'error', text: '오류가 발생했습니다.' })
+      setMessage({ type: 'error', text: '병합 처리 중 오류가 발생했습니다.' })
     } finally {
-      setLoading(false)
+      setMergeLoading(false)
+      setShowMergeModal(false)
+      setMergeInfo(null)
+      setPendingFormData(null)
     }
+  }
+
+  // 병합 취소
+  const handleMergeCancel = () => {
+    setShowMergeModal(false)
+    setMergeInfo(null)
+    setPendingFormData(null)
   }
 
   return (
@@ -644,6 +726,72 @@ function TransactionInContent() {
           </form>
         </CardContent>
       </Card>
+
+      {/* 병합 확인 모달 */}
+      {showMergeModal && mergeInfo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h3 className="font-bold text-lg text-foreground">수량 병합 확인</h3>
+              </div>
+
+              <p className="text-muted-foreground text-sm mb-4">
+                해당 위치에 동일한 품목이 이미 존재합니다.<br />
+                수량을 병합하시겠습니까?
+              </p>
+
+              <div className="bg-muted rounded-xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">품목명</span>
+                  <span className="font-medium text-foreground">{mergeInfo.existingItem.itemName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">기존 수량</span>
+                  <span className="font-medium text-foreground">{mergeInfo.existingItem.currentQty}개</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">추가 수량</span>
+                  <span className="font-medium text-emerald-600">+{mergeInfo.newQty}개</span>
+                </div>
+                <div className="border-t border-border pt-2 mt-2">
+                  <div className="flex justify-between">
+                    <span className="font-medium text-foreground">병합 후 수량</span>
+                    <span className="font-bold text-primary">{mergeInfo.mergedQty}개</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex border-t border-border">
+              <button
+                onClick={handleMergeCancel}
+                disabled={mergeLoading}
+                className="flex-1 py-3.5 text-muted-foreground font-medium hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleMergeConfirm}
+                disabled={mergeLoading}
+                className="flex-1 py-3.5 text-emerald-600 font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors border-l border-border disabled:opacity-50"
+              >
+                {mergeLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    처리 중...
+                  </span>
+                ) : (
+                  '병합'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

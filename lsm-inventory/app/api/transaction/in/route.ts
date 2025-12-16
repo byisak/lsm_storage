@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
 
-    const { storage, location, itemCode, itemName, qty, remark, user } = data
+    const { storage, location, itemCode, itemName, qty, remark, user, merge } = data
 
     // 필수 값 검증
     if (!storage || !location || !itemCode || !itemName || !qty || qty <= 0) {
@@ -19,16 +19,75 @@ export async function POST(request: NextRequest) {
 
     // 기존 데이터 체크
     const existing = await executeQuery<LsMotorRack>(
-      `SELECT ID FROM LS_MOTOR_RACK
+      `SELECT ID, NOW_QTY, ITEM_NAME FROM LS_MOTOR_RACK
        WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
       { storage, location, itemCode }
     )
 
     if (existing.length > 0) {
-      return NextResponse.json(
-        { success: false, message: '이미 해당 위치에 같은 품목이 존재합니다.' },
-        { status: 400 }
-      )
+      const existingItem = existing[0]
+
+      // merge 파라미터가 없으면 병합 여부 확인 요청
+      if (!merge) {
+        return NextResponse.json({
+          success: false,
+          canMerge: true,
+          message: '이미 해당 위치에 같은 품목이 존재합니다. 수량을 병합하시겠습니까?',
+          existingItem: {
+            id: existingItem.ID,
+            currentQty: existingItem.NOW_QTY,
+            itemName: existingItem.ITEM_NAME,
+          },
+          newQty: qty,
+          mergedQty: existingItem.NOW_QTY + qty,
+        })
+      }
+
+      // merge=true면 수량 병합 처리
+      const now = new Date()
+      const beforeQty = existingItem.NOW_QTY
+      const afterQty = beforeQty + qty
+
+      await withTransaction(async (connection) => {
+        // 기존 재고 수량 업데이트
+        await connection.execute(
+          `UPDATE LS_MOTOR_RACK SET NOW_QTY = :nowQty WHERE ID = :id`,
+          { nowQty: afterQty, id: existingItem.ID },
+          { autoCommit: false }
+        )
+
+        // 수불 이력 추가 (병합)
+        await connection.execute(
+          `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+           VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
+          {
+            storage,
+            location,
+            itemCode,
+            itemName,
+            qty,
+            category: '입고(병합)',
+            subulTime: now,
+            remark: `[${beforeQty}개 → ${afterQty}개] ${remark || ''}`.trim(),
+            userId: user || 'system',
+          },
+          { autoCommit: false }
+        )
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: `수량이 병합되었습니다. (${beforeQty}개 → ${afterQty}개)`,
+        merged: true,
+        data: {
+          id: existingItem.ID,
+          storage,
+          location,
+          itemCode,
+          itemName,
+          nowQty: afterQty,
+        },
+      })
     }
 
     const now = new Date()
