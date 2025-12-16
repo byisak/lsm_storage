@@ -56,6 +56,7 @@ function HomeContent() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [hasSearched, setHasSearched] = useState(false)
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
@@ -777,7 +778,8 @@ function HomeContent() {
         ).filter(item => item.nowQty > 0))
         setTimeout(() => setMoveItem(null), 1500)
       } else if (data.canMerge) {
-        // 병합 가능한 경우 모달 표시
+        // 병합 가능한 경우 모달 표시 (Dialog를 먼저 닫음)
+        setMoveItem(null)
         setMoveMergeInfo({
           existingItem: data.existingItem,
           moveQty: data.moveQty,
@@ -797,7 +799,7 @@ function HomeContent() {
 
   // 이동 병합 확인 처리
   const handleMoveMergeConfirm = async () => {
-    if (!pendingMoveData || !moveItem) return
+    if (!pendingMoveData) return
 
     setMoveMergeLoading(true)
     try {
@@ -811,19 +813,22 @@ function HomeContent() {
       })
       const data = await res.json()
       if (data.success) {
-        setMoveMessage({ type: 'success', text: data.message })
         // 목록 업데이트
         setItems(prev => prev.map(item =>
-          item.id === moveItem.id
+          item.id === pendingMoveData.rackId
             ? { ...item, nowQty: item.nowQty - pendingMoveData.qty }
             : item
         ).filter(item => item.nowQty > 0))
-        setTimeout(() => setMoveItem(null), 1500)
+        // 성공 메시지 표시 (토스트 형태로)
+        setToastMessage({ type: 'success', text: data.message })
+        setTimeout(() => setToastMessage(null), 3000)
       } else {
-        setMoveMessage({ type: 'error', text: data.message })
+        setToastMessage({ type: 'error', text: data.message })
+        setTimeout(() => setToastMessage(null), 3000)
       }
     } catch {
-      setMoveMessage({ type: 'error', text: '병합 처리 중 오류가 발생했습니다' })
+      setToastMessage({ type: 'error', text: '병합 처리 중 오류가 발생했습니다' })
+      setTimeout(() => setToastMessage(null), 3000)
     } finally {
       setMoveMergeLoading(false)
       setShowMoveMergeModal(false)
@@ -887,6 +892,24 @@ function HomeContent() {
 
   return (
     <div className="p-4 pb-8">
+      {/* 토스트 메시지 */}
+      {toastMessage && (
+        <div
+          className={`fixed top-4 left-4 right-4 z-[300] p-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2 ${
+            toastMessage.type === 'success'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-destructive text-destructive-foreground'
+          }`}
+        >
+          {toastMessage.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+          ) : (
+            <XCircle className="w-5 h-5 shrink-0" />
+          )}
+          <span className="text-sm font-medium">{toastMessage.text}</span>
+        </div>
+      )}
+
       {/* Search Section */}
       <div className="mb-6">
         <h2 className="text-xl font-bold text-foreground mb-1">재고 검색</h2>
