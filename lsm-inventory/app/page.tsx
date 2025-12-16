@@ -16,6 +16,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Search, Loader2, Package, MapPin, Warehouse, Calendar as CalendarIcon, PackageSearch, ArrowUpFromLine, Pencil, CheckCircle2, XCircle, PackageX, PackagePlus, MoveRight, ChevronDown } from 'lucide-react'
 import { useWarehouses, WarehouseConfig } from '@/lib/warehouse-context'
+import { useAuth } from '@/lib/auth-context'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
@@ -114,6 +115,9 @@ function HomeContent() {
 
   // 창고 컨텍스트에서 창고 목록 및 이름 조회 함수 가져오기
   const { warehouses, getWarehouseName } = useWarehouses()
+
+  // 로그인 사용자 정보
+  const { user } = useAuth()
 
   // URL 파라미터로 QR 스캔 자동 검색
   useEffect(() => {
@@ -584,7 +588,7 @@ function HomeContent() {
         body: JSON.stringify({
           rackId: outboundItem.id,
           qty,
-          user: 'mobile',
+          user: user?.name || '익명',
         }),
       })
       const data = await res.json()
@@ -741,7 +745,7 @@ function HomeContent() {
           toStorage: moveForm.toStorage,
           toLocation: finalLocation,
           qty,
-          user: 'mobile',
+          user: user?.name || '익명',
         }),
       })
       const data = await res.json()
@@ -780,7 +784,7 @@ function HomeContent() {
           nowQty: parseInt(editForm.nowQty),
           inDay: editForm.inDay || null,
           remark: editForm.remark || null,
-          user: 'mobile',
+          user: user?.name || '익명',
         }),
       })
       const data = await res.json()
@@ -1017,11 +1021,9 @@ function HomeContent() {
                 <CardContent className="p-0">
                   <div className="p-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <span className="bg-accent text-accent-foreground text-xs font-mono px-2 py-0.5 rounded">
-                          {item.itemCode}
-                        </span>
-                        <p className="font-medium text-foreground mt-1 text-sm">{item.itemName}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-foreground text-base font-mono">{item.itemCode}</p>
+                        <p className="text-muted-foreground mt-0.5 text-xs truncate">{item.itemName}</p>
 
                         <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
@@ -1039,12 +1041,12 @@ function HomeContent() {
                         </div>
                       </div>
 
-                      <div className="text-right ml-3">
-                        <div className="flex items-center gap-1">
+                      <div className="text-right ml-3 shrink-0">
+                        <div className="flex items-center gap-1 whitespace-nowrap">
                           <Package className="w-4 h-4 text-primary" />
                           <span className="text-lg font-bold text-primary">{formatNumber(item.nowQty)}</span>
+                          <span className="text-xs text-muted-foreground">개</span>
                         </div>
-                        <span className="text-xs text-muted-foreground">개</span>
                       </div>
                     </div>
                   </div>

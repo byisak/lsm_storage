@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, MapPin, Package, FileText, Loader2, CheckCircle2, XCircle, ChevronLeft, Minus, Warehouse } from 'lucide-react'
 import { useWarehouses } from '@/lib/warehouse-context'
+import { useAuth } from '@/lib/auth-context'
 
 interface RackItem {
   id: number
@@ -18,6 +19,7 @@ interface RackItem {
 
 export default function TransactionOutPage() {
   const { getWarehouseName } = useWarehouses()
+  const { user } = useAuth()
   const [location, setLocation] = useState('')
   const [items, setItems] = useState<RackItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -66,7 +68,7 @@ export default function TransactionOutPage() {
           rackId: selectedItem.id,
           qty: parseInt(outQty),
           remark,
-          user: 'mobile',
+          user: user?.name || '익명',
         }),
       })
 

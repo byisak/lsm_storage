@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Warehouse, MapPin, Package, Hash, FileText, Loader2, CheckCircle2, XCircle, ChevronDown, History } from 'lucide-react'
 import { useWarehouses } from '@/lib/warehouse-context'
+import { useAuth } from '@/lib/auth-context'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
 
 interface AutocompleteItem {
@@ -22,6 +23,7 @@ interface LocationSuggestion {
 function TransactionInContent() {
   const searchParams = useSearchParams()
   const { warehouses, getWarehouseName } = useWarehouses()
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     storage: '',
     location: '',
@@ -316,7 +318,7 @@ function TransactionInContent() {
           ...formData,
           location: finalLocation,
           qty: parseInt(formData.qty),
-          user: 'mobile',
+          user: user?.name || '익명',
         }),
       })
 
