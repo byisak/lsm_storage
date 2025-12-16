@@ -20,6 +20,16 @@ import { useAuth } from '@/lib/auth-context'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 
 type SearchTab = 'item' | 'rack'
 
@@ -1557,70 +1567,69 @@ function HomeContent() {
       </Dialog>
 
       {/* 이동 병합 확인 모달 */}
-      {showMoveMergeModal && moveMergeInfo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
-          <div className="bg-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div className="p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <h3 className="font-bold text-lg text-foreground">수량 병합 확인</h3>
+      <AlertDialog open={showMoveMergeModal} onOpenChange={(open) => !open && handleMoveMergeCancel()}>
+        <AlertDialogContent className="rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
               </div>
+              <AlertDialogTitle className="text-lg font-bold">수량 병합 확인</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-left pt-2">
+              이동 위치에 동일한 품목이 이미 존재합니다.<br />
+              수량을 병합하시겠습니까?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
 
-              <p className="text-muted-foreground text-sm mb-4">
-                이동 위치에 동일한 품목이 이미 존재합니다.<br />
-                수량을 병합하시겠습니까?
-              </p>
-
-              <div className="bg-muted rounded-xl p-4 space-y-2 text-sm">
+          {moveMergeInfo && (
+            <div className="bg-muted rounded-xl p-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">품목명</span>
+                <span className="font-medium text-foreground">{moveMergeInfo.existingItem.itemName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">기존 수량</span>
+                <span className="font-medium text-foreground">{moveMergeInfo.existingItem.currentQty}개</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">이동 수량</span>
+                <span className="font-medium text-teal-600">+{moveMergeInfo.moveQty}개</span>
+              </div>
+              <div className="border-t border-border pt-2 mt-2">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">품목명</span>
-                  <span className="font-medium text-foreground">{moveMergeInfo.existingItem.itemName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">기존 수량</span>
-                  <span className="font-medium text-foreground">{moveMergeInfo.existingItem.currentQty}개</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">이동 수량</span>
-                  <span className="font-medium text-teal-600">+{moveMergeInfo.moveQty}개</span>
-                </div>
-                <div className="border-t border-border pt-2 mt-2">
-                  <div className="flex justify-between">
-                    <span className="font-medium text-foreground">병합 후 수량</span>
-                    <span className="font-bold text-primary">{moveMergeInfo.mergedQty}개</span>
-                  </div>
+                  <span className="font-medium text-foreground">병합 후 수량</span>
+                  <span className="font-bold text-primary">{moveMergeInfo.mergedQty}개</span>
                 </div>
               </div>
             </div>
+          )}
 
-            <div className="flex border-t border-border">
-              <button
-                onClick={handleMoveMergeCancel}
-                disabled={moveMergeLoading}
-                className="flex-1 py-3.5 text-muted-foreground font-medium hover:bg-muted transition-colors disabled:opacity-50"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleMoveMergeConfirm}
-                disabled={moveMergeLoading}
-                className="flex-1 py-3.5 text-teal-600 font-medium hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors border-l border-border disabled:opacity-50"
-              >
-                {moveMergeLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    처리 중...
-                  </span>
-                ) : (
-                  '병합'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          <AlertDialogFooter className="flex-row gap-2">
+            <AlertDialogCancel
+              onClick={handleMoveMergeCancel}
+              disabled={moveMergeLoading}
+              className="flex-1 h-11 rounded-xl"
+            >
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMoveMergeConfirm}
+              disabled={moveMergeLoading}
+              className="flex-1 h-11 rounded-xl bg-teal-600 hover:bg-teal-700"
+            >
+              {moveMergeLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  처리 중...
+                </span>
+              ) : (
+                '병합'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
