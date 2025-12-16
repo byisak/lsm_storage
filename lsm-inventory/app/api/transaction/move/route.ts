@@ -143,10 +143,39 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // 3. 이동 이력 기록 (출고)
+      // 3. 이동 이력 기록 (출고) - 복구용 메타데이터 포함
       const isMerge = existingTarget && merge
       const sourceCategory = isMerge ? '이동(병합)' : '이동(출)'
-      const sourceRemark = `→ ${toLocation} (${toStorage}) [${sourceBeforeQty}개 → ${sourceAfterQty}개]`
+
+      // 목적지 rack ID 조회 (신규 생성된 경우)
+      let targetRackId = existingTarget ? existingTarget.ID : null
+      if (!existingTarget) {
+        const newTargetResult = await connection.execute<{ ID: number }>(
+          `SELECT ID FROM LS_MOTOR_RACK WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
+          { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode },
+          { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        )
+        const newTargetRows = newTargetResult.rows as { ID: number }[]
+        if (newTargetRows.length > 0) {
+          targetRackId = newTargetRows[0].ID
+        }
+      }
+
+      const sourceUndoMeta = JSON.stringify({
+        type: 'move_out',
+        sourceRackId: rackId,
+        targetRackId: targetRackId,
+        toStorage: toStorage,
+        toLocation: toLocation,
+        beforeQty: sourceBeforeQty,
+        afterQty: sourceAfterQty,
+        inDay: sourceRack.inDay,
+        originalRemark: sourceRack.remark,
+        isMerge: isMerge,
+        targetBeforeQty: targetBeforeQty,
+      })
+      const sourceRemark = `${sourceUndoMeta}|→ ${toLocation} (${toStorage}) [${sourceBeforeQty}개 → ${sourceAfterQty}개]`
+
       await connection.execute(
         `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
          VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
@@ -166,9 +195,20 @@ export async function POST(request: NextRequest) {
 
       // 4. 이동 이력 기록 (입고) - 병합이 아닌 경우만 기록
       if (!isMerge) {
+        const targetUndoMeta = JSON.stringify({
+          type: 'move_in',
+          sourceRackId: rackId,
+          targetRackId: targetRackId,
+          fromStorage: sourceRack.storage,
+          fromLocation: sourceRack.location,
+          beforeQty: targetBeforeQty,
+          afterQty: targetAfterQty,
+          isNew: !existingTarget,
+        })
         const targetRemark = existingTarget
-          ? `← ${sourceRack.location} (${sourceRack.storage}) [${targetBeforeQty}개 → ${targetAfterQty}개]`
-          : `← ${sourceRack.location} (${sourceRack.storage}) [신규]`
+          ? `${targetUndoMeta}|← ${sourceRack.location} (${sourceRack.storage}) [${targetBeforeQty}개 → ${targetAfterQty}개]`
+          : `${targetUndoMeta}|← ${sourceRack.location} (${sourceRack.storage}) [신규]`
+
         await connection.execute(
           `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
