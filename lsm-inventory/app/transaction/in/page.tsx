@@ -22,7 +22,7 @@ interface LocationSuggestion {
 
 function TransactionInContent() {
   const searchParams = useSearchParams()
-  const { warehouses, getWarehouseName } = useWarehouses()
+  const { warehouses } = useWarehouses()
   const { user } = useAuth()
   const [formData, setFormData] = useState({
     storage: '',
@@ -382,7 +382,7 @@ function TransactionInContent() {
                 >
                   <option value="">창고 선택</option>
                   {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>
+                    <option key={w.id} value={w.name}>
                       {w.name}
                     </option>
                   ))}
@@ -464,7 +464,7 @@ function TransactionInContent() {
                           className="px-3 py-2.5 cursor-pointer border-b border-border last:border-b-0 hover:bg-accent"
                         >
                           <span className="text-primary font-mono text-sm">{loc.location}</span>
-                          <span className="text-muted-foreground text-xs ml-2">({getWarehouseName(loc.storage)})</span>
+                          <span className="text-muted-foreground text-xs ml-2">({loc.storage})</span>
                         </div>
                       ))}
                     </div>

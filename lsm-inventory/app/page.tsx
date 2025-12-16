@@ -154,7 +154,7 @@ function HomeContent() {
             const data = await res.json()
             if (data.success) {
               setItems(data.items)
-              setSearchedLocation({ storage: storageId, location: location })
+              setSearchedLocation({ storage: storageName, location: location })
             }
           } else {
             const q = expandLocation(scanParam)
@@ -946,7 +946,7 @@ function HomeContent() {
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Warehouse className="w-3 h-3" />
-                      <span>{getWarehouseName(suggestion.storage)}</span>
+                      <span>{suggestion.storage}</span>
                     </div>
                   </div>
                 ))}
@@ -990,7 +990,7 @@ function HomeContent() {
               <div className="flex items-center gap-2 text-white">
                 <MapPin className="w-4 h-4" />
                 <span className="font-medium">{searchedLocation.location}</span>
-                <span className="text-blue-200 text-sm">{getWarehouseName(searchedLocation.storage)}</span>
+                <span className="text-blue-200 text-sm">{searchedLocation.storage}</span>
               </div>
             </div>
           )}
@@ -1032,7 +1032,7 @@ function HomeContent() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Warehouse className="w-3 h-3" />
-                            {getWarehouseName(item.storage)}
+                            {item.storage}
                           </span>
                           <span className="flex items-center gap-1">
                             <CalendarIcon className="w-3 h-3" />
@@ -1187,7 +1187,7 @@ function HomeContent() {
               <div className="bg-muted rounded-xl p-3">
                 <p className="text-sm text-muted-foreground">위치</p>
                 <p className="font-medium text-foreground">{editItem.location}</p>
-                <p className="text-xs text-muted-foreground mt-1">{getWarehouseName(editItem.storage)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{editItem.storage}</p>
               </div>
               <div className="relative">
                 <label className="text-sm font-medium text-foreground mb-1.5 block">품목코드</label>
@@ -1337,7 +1337,7 @@ function HomeContent() {
               <div className="bg-teal-50 dark:bg-teal-900/30 rounded-xl p-3">
                 <p className="text-sm text-teal-700 dark:text-teal-300">현재 위치</p>
                 <p className="font-bold text-teal-600 dark:text-teal-400">{moveItem.location}</p>
-                <p className="text-xs text-teal-500 dark:text-teal-400 mt-0.5">{getWarehouseName(moveItem.storage)} · {formatNumber(moveItem.nowQty)}개</p>
+                <p className="text-xs text-teal-500 dark:text-teal-400 mt-0.5">{moveItem.storage} · {formatNumber(moveItem.nowQty)}개</p>
               </div>
 
               {/* 목적지 창고 */}
@@ -1351,7 +1351,7 @@ function HomeContent() {
                     className="w-full pl-10 pr-10 h-11 rounded-lg border border-input bg-background text-foreground text-base appearance-none focus:border-ring focus:ring-1 focus:ring-ring focus:outline-none"
                   >
                     {warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>
+                      <option key={w.id} value={w.name}>
                         {w.name}
                       </option>
                     ))}
@@ -1402,7 +1402,7 @@ function HomeContent() {
                         }`}
                       >
                         <span className="text-primary font-mono text-sm">{suggestion.location}</span>
-                        <span className="text-muted-foreground text-xs ml-2">({getWarehouseName(suggestion.storage)})</span>
+                        <span className="text-muted-foreground text-xs ml-2">({suggestion.storage})</span>
                       </div>
                     ))}
                   </div>

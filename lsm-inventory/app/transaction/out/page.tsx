@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, MapPin, Package, FileText, Loader2, CheckCircle2, XCircle, ChevronLeft, Minus, Warehouse } from 'lucide-react'
-import { useWarehouses } from '@/lib/warehouse-context'
 import { useAuth } from '@/lib/auth-context'
 
 interface RackItem {
@@ -18,7 +17,6 @@ interface RackItem {
 }
 
 export default function TransactionOutPage() {
-  const { getWarehouseName } = useWarehouses()
   const { user } = useAuth()
   const [location, setLocation] = useState('')
   const [items, setItems] = useState<RackItem[]>([])
@@ -241,7 +239,7 @@ export default function TransactionOutPage() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Warehouse className="w-3 h-3" />
-                        {getWarehouseName(item.storage)}
+                        {item.storage}
                       </span>
                     </div>
                   </div>
