@@ -144,6 +144,8 @@ export async function POST(request: NextRequest) {
       }
 
       // 3. 이동 이력 기록 (출고)
+      const isMerge = existingTarget && merge
+      const sourceCategory = isMerge ? '이동(병합)' : '이동(출)'
       const sourceRemark = `→ ${toLocation} (${toStorage}) [${sourceBeforeQty}개 → ${sourceAfterQty}개]`
       await connection.execute(
         `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
@@ -154,7 +156,7 @@ export async function POST(request: NextRequest) {
           itemCode: sourceRack.itemCode,
           itemName: sourceRack.itemName,
           qty: qty,
-          category: '이동(출)',
+          category: sourceCategory,
           subulTime: now,
           remark: sourceRemark,
           userId: user || 'mobile',
@@ -162,31 +164,38 @@ export async function POST(request: NextRequest) {
         { autoCommit: false }
       )
 
-      // 4. 이동 이력 기록 (입고)
-      const targetRemark = existingTarget
-        ? `← ${sourceRack.location} (${sourceRack.storage}) [${targetBeforeQty}개 → ${targetAfterQty}개]`
-        : `← ${sourceRack.location} (${sourceRack.storage}) [신규]`
-      await connection.execute(
-        `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
-         VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
-        {
-          storage: toStorage,
-          location: toLocation,
-          itemCode: sourceRack.itemCode,
-          itemName: sourceRack.itemName,
-          qty: qty,
-          category: '이동(입)',
-          subulTime: now,
-          remark: targetRemark,
-          userId: user || 'mobile',
-        },
-        { autoCommit: false }
-      )
+      // 4. 이동 이력 기록 (입고) - 병합이 아닌 경우만 기록
+      if (!isMerge) {
+        const targetRemark = existingTarget
+          ? `← ${sourceRack.location} (${sourceRack.storage}) [${targetBeforeQty}개 → ${targetAfterQty}개]`
+          : `← ${sourceRack.location} (${sourceRack.storage}) [신규]`
+        await connection.execute(
+          `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+           VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
+          {
+            storage: toStorage,
+            location: toLocation,
+            itemCode: sourceRack.itemCode,
+            itemName: sourceRack.itemName,
+            qty: qty,
+            category: '이동(입)',
+            subulTime: now,
+            remark: targetRemark,
+            userId: user || 'mobile',
+          },
+          { autoCommit: false }
+        )
+      }
     })
+
+    // 병합 여부에 따른 메시지
+    const resultMessage = merge
+      ? `${qty}개가 ${toLocation}으로 병합되었습니다.`
+      : `${qty}개가 ${toLocation}으로 이동되었습니다.`
 
     return NextResponse.json({
       success: true,
-      message: `${qty}개가 ${toLocation}으로 이동되었습니다.`,
+      message: resultMessage,
     })
   } catch (error) {
     console.error('Move error:', error)
