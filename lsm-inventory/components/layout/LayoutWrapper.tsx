@@ -15,7 +15,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   return (
     <>
       <MobileHeader />
-      <main className="pt-14 pb-20 min-h-screen">
+      <main className="pt-14 pb-24 min-h-screen">
         {children}
       </main>
       <BottomNav />
