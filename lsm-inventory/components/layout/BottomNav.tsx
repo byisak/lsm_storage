@@ -2,12 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, PackagePlus, ClipboardList, Undo2 } from 'lucide-react'
+import { Home, PackagePlus, ClipboardList } from 'lucide-react'
 
 const navItems = [
   { href: '/', label: '홈', icon: Home },
   { href: '/transaction/in', label: '입고', icon: PackagePlus },
-  { href: '/transaction/undo', label: '되돌리기', icon: Undo2 },
   { href: '/transaction/history', label: '이력', icon: ClipboardList },
 ]
 

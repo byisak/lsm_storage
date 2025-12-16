@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { X, ChevronRight, User, LogOut, Shield, Warehouse } from 'lucide-react'
+import { X, ChevronRight, User, LogOut, Shield, Warehouse, Undo2 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 
@@ -119,6 +119,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
             >
               <span className="text-foreground">이력</span>
+            </Link>
+            <Link
+              href="/transaction/undo"
+              onClick={onClose}
+              className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+            >
+              <Undo2 className="w-4 h-4 text-red-500" />
+              <span className="text-foreground">되돌리기</span>
             </Link>
             <Link
               href="/settings"
