@@ -8,9 +8,9 @@ const STORAGE_KEY = 'warehouse-config'
 
 // 기본 창고 설정
 const DEFAULT_WAREHOUSES: WarehouseConfig[] = [
-  { id: '1', name: '모터창고' },
-  { id: '2', name: '외부창고' },
-  { id: '3', name: '제품창고' },
+  { id: '1', name: '모터 창고' },
+  { id: '2', name: '외부 창고' },
+  { id: '3', name: '제품 창고' },
 ]
 
 export function getWarehouses(): WarehouseConfig[] {

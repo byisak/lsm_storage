@@ -1,20 +1,58 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/lib/auth-context'
+import { useWarehouses } from '@/lib/warehouse-context'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Warehouse, Plus, Trash2, Save, Loader2, CheckCircle2 } from 'lucide-react'
-import { getWarehouses, saveWarehouses, WarehouseConfig } from '@/lib/warehouse-config'
+import { Warehouse, Plus, Trash2, Save, Loader2, CheckCircle2, XCircle, Shield } from 'lucide-react'
+
+interface WarehouseItem {
+  id: string
+  name: string
+  sortOrder?: number
+  isNew?: boolean
+}
 
 export default function WarehouseSettingsPage() {
-  const [warehouses, setWarehouses] = useState<WarehouseConfig[]>([])
+  const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
+  const { refresh: refreshWarehouseContext } = useWarehouses()
+  const [warehouses, setWarehouses] = useState<WarehouseItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  // 관리자 권한 확인
   useEffect(() => {
-    setWarehouses(getWarehouses())
-  }, [])
+    if (!authLoading && (!user || user.role !== 'ADMIN')) {
+      router.push('/')
+    }
+  }, [user, authLoading, router])
+
+  // 창고 목록 로드
+  useEffect(() => {
+    if (user?.role === 'ADMIN') {
+      fetchWarehouses()
+    }
+  }, [user])
+
+  const fetchWarehouses = async () => {
+    try {
+      const res = await fetch('/api/warehouses')
+      const data = await res.json()
+      if (data.success) {
+        setWarehouses(data.warehouses)
+      }
+    } catch (error) {
+      console.error('Failed to fetch warehouses:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleChange = (index: number, field: 'id' | 'name', value: string) => {
     const updated = [...warehouses]
@@ -24,52 +62,134 @@ export default function WarehouseSettingsPage() {
 
   const handleAdd = () => {
     const nextId = String(Math.max(...warehouses.map(w => parseInt(w.id) || 0), 0) + 1)
-    setWarehouses([...warehouses, { id: nextId, name: '' }])
+    setWarehouses([...warehouses, { id: nextId, name: '', isNew: true }])
   }
 
-  const handleRemove = (index: number) => {
-    setWarehouses(warehouses.filter((_, i) => i !== index))
+  const handleRemove = async (index: number) => {
+    const warehouse = warehouses[index]
+
+    // 새로 추가한 항목이면 바로 삭제
+    if (warehouse.isNew) {
+      setWarehouses(warehouses.filter((_, i) => i !== index))
+      return
+    }
+
+    // DB에서 삭제
+    setDeletingId(warehouse.id)
+    try {
+      const res = await fetch(`/api/warehouses?id=${warehouse.id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+      if (data.success) {
+        setWarehouses(warehouses.filter((_, i) => i !== index))
+        setMessage({ type: 'success', text: '삭제되었습니다.' })
+        // 전역 창고 컨텍스트 갱신
+        await refreshWarehouseContext()
+      } else {
+        setMessage({ type: 'error', text: data.message })
+      }
+    } catch {
+      setMessage({ type: 'error', text: '삭제 중 오류가 발생했습니다.' })
+    } finally {
+      setDeletingId(null)
+      setTimeout(() => setMessage(null), 2000)
+    }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true)
-    saveWarehouses(warehouses)
-    setTimeout(() => {
+    setMessage(null)
+
+    try {
+      // 새 항목 추가 및 기존 항목 수정
+      for (let i = 0; i < warehouses.length; i++) {
+        const w = warehouses[i]
+        if (!w.id || !w.name) continue
+
+        if (w.isNew) {
+          // 추가
+          const res = await fetch('/api/warehouses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: w.id, name: w.name }),
+          })
+          const data = await res.json()
+          if (!data.success) {
+            setMessage({ type: 'error', text: `창고 ${w.id}: ${data.message}` })
+            setSaving(false)
+            return
+          }
+        } else {
+          // 수정
+          const res = await fetch('/api/warehouses', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: w.id, name: w.name, sortOrder: i + 1 }),
+          })
+          const data = await res.json()
+          if (!data.success) {
+            setMessage({ type: 'error', text: `창고 ${w.id}: ${data.message}` })
+            setSaving(false)
+            return
+          }
+        }
+      }
+
+      setMessage({ type: 'success', text: '저장되었습니다.' })
+      // 새로고침하여 isNew 플래그 제거
+      await fetchWarehouses()
+      // 전역 창고 컨텍스트 갱신
+      await refreshWarehouseContext()
+    } catch {
+      setMessage({ type: 'error', text: '저장 중 오류가 발생했습니다.' })
+    } finally {
       setSaving(false)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    }, 300)
+      setTimeout(() => setMessage(null), 2000)
+    }
+  }
+
+  if (authLoading || loading || !user || user.role !== 'ADMIN') {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
     <div className="p-4">
       <div className="mb-5">
-        <h2 className="text-lg font-bold text-gray-900">창고 설정</h2>
-        <p className="text-sm text-gray-500">창고 번호별 이름을 설정합니다</p>
+        <div className="flex items-center gap-2 mb-1">
+          <Shield className="w-5 h-5 text-orange-500" />
+          <h2 className="text-lg font-bold text-foreground">창고 설정</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">창고 번호별 이름을 설정합니다 (DB 저장)</p>
       </div>
 
       <Card className="border-0 shadow-sm">
         <CardContent className="p-5">
           <div className="space-y-3">
             {warehouses.map((warehouse, index) => (
-              <div key={index} className="flex items-center gap-2">
+              <div key={warehouse.id + index} className="flex items-center gap-2">
                 <div className="relative w-20">
                   <Input
                     type="text"
                     value={warehouse.id}
                     onChange={(e) => handleChange(index, 'id', e.target.value)}
                     placeholder="번호"
-                    className="h-11 text-center font-mono rounded-lg border-gray-200"
+                    className="h-11 text-center rounded-lg"
+                    disabled={!warehouse.isNew}
                   />
                 </div>
                 <div className="flex-1 relative">
-                  <Warehouse className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Warehouse className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     type="text"
                     value={warehouse.name}
                     onChange={(e) => handleChange(index, 'name', e.target.value)}
                     placeholder="창고명 입력"
-                    className="pl-10 h-11 rounded-lg border-gray-200"
+                    className="pl-10 h-11 rounded-lg"
                   />
                 </div>
                 <Button
@@ -77,9 +197,14 @@ export default function WarehouseSettingsPage() {
                   variant="ghost"
                   size="icon"
                   onClick={() => handleRemove(index)}
-                  className="h-11 w-11 text-red-500 hover:text-red-700 hover:bg-red-50"
+                  disabled={deletingId === warehouse.id}
+                  className="h-11 w-11 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {deletingId === warehouse.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             ))}
@@ -89,16 +214,26 @@ export default function WarehouseSettingsPage() {
             type="button"
             variant="outline"
             onClick={handleAdd}
-            className="w-full mt-4 h-11 rounded-lg border-dashed border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400"
+            className="w-full mt-4 h-11 rounded-lg border-dashed text-muted-foreground hover:text-foreground"
           >
             <Plus className="w-4 h-4 mr-2" />
             창고 추가
           </Button>
 
-          {saved && (
-            <div className="mt-4 p-3 rounded-xl text-sm flex items-center gap-2 bg-green-50 text-green-700 border border-green-200">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              저장되었습니다
+          {message && (
+            <div
+              className={`mt-4 p-3 rounded-xl text-sm flex items-center gap-2 border ${
+                message.type === 'success'
+                  ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
+                  : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+              }`}
+            >
+              {message.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              ) : (
+                <XCircle className="w-4 h-4 shrink-0" />
+              )}
+              {message.text}
             </div>
           )}
 

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -14,11 +14,22 @@ import {
 } from '@/components/ui/dialog'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Search, Loader2, Package, MapPin, Warehouse, Calendar as CalendarIcon, PackageSearch, ArrowUpFromLine, Pencil, CheckCircle2, XCircle, PackageX, PackagePlus, MoveRight, ChevronDown } from 'lucide-react'
-import { getWarehouseName, getWarehouses, WarehouseConfig } from '@/lib/warehouse-config'
+import { Search, Loader2, Package, MapPin, Warehouse, Calendar as CalendarIcon, PackageSearch, ArrowUpFromLine, Pencil, CheckCircle2, XCircle, PackageX, PackagePlus, MoveRight, ChevronDown, AlertTriangle } from 'lucide-react'
+import { useWarehouses, WarehouseConfig } from '@/lib/warehouse-context'
+import { useAuth } from '@/lib/auth-context'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 
 type SearchTab = 'item' | 'rack'
 
@@ -43,8 +54,9 @@ interface LocationSuggestion {
   storage: string
 }
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<SearchTab>('item')
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<RackItem[]>([])
@@ -54,6 +66,7 @@ export default function Home() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [hasSearched, setHasSearched] = useState(false)
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
@@ -102,7 +115,22 @@ export default function Home() {
   })
   const [moveLoading, setMoveLoading] = useState(false)
   const [moveMessage, setMoveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [warehouses, setWarehouses] = useState<WarehouseConfig[]>([])
+
+  // 이동 병합 확인 모달 상태
+  const [showMoveMergeModal, setShowMoveMergeModal] = useState(false)
+  const [moveMergeInfo, setMoveMergeInfo] = useState<{
+    existingItem: { id: number; currentQty: number; itemName: string }
+    moveQty: number
+    mergedQty: number
+  } | null>(null)
+  const [moveMergeLoading, setMoveMergeLoading] = useState(false)
+  const [pendingMoveData, setPendingMoveData] = useState<{
+    rackId: number
+    toStorage: string
+    toLocation: string
+    qty: number
+    user: string
+  } | null>(null)
 
   // 이동 모달 위치 자동완성 상태
   const [moveLocationSuggestions, setMoveLocationSuggestions] = useState<LocationSuggestion[]>([])
@@ -112,10 +140,72 @@ export default function Home() {
   const moveLocationInputRef = useRef<HTMLInputElement>(null)
   const moveLocationSuggestionsRef = useRef<HTMLDivElement>(null)
 
-  // 창고 목록 로드
+  // 창고 컨텍스트에서 창고 목록 및 이름 조회 함수 가져오기
+  const { warehouses, getWarehouseName } = useWarehouses()
+
+  // 로그인 사용자 정보
+  const { user } = useAuth()
+
+  // URL 파라미터로 QR 스캔 자동 검색
   useEffect(() => {
-    setWarehouses(getWarehouses())
-  }, [])
+    const scanParam = searchParams.get('scan')
+    if (scanParam) {
+      // 랙 검색 탭으로 전환하고 자동 검색
+      setActiveTab('rack')
+
+      // QR 형식: "1|A-01-A2"에서 위치값만 인풋에 표시
+      const locationOnly = scanParam.includes('|')
+        ? scanParam.split('|')[1]
+        : scanParam
+      setQuery(locationOnly)
+
+      // 검색 실행
+      const doSearch = async () => {
+        setHasSearched(true)
+        setShowLocationSuggestions(false)
+        setLocationSuggestions([])
+        setLoading(true)
+        setSearched(true)
+
+        try {
+          if (scanParam.includes('|')) {
+            // QR 형식: "1|A-01-A2" → 창고ID|위치
+            const [storageId, locationPart] = scanParam.split('|')
+            const storageName = getWarehouseName(storageId) // 창고 ID를 이름으로 변환
+            const location = expandLocation(locationPart)
+
+            setCurrentSearchQuery(location)
+
+            // DB에는 창고명으로 저장되어 있으므로 이름으로 검색
+            const res = await fetch(`/api/rack/scan?storage=${encodeURIComponent(storageName)}&location=${encodeURIComponent(location)}`)
+            const data = await res.json()
+            if (data.success) {
+              setItems(data.items)
+              setSearchedLocation({ storage: storageName, location: location })
+            }
+          } else {
+            const q = expandLocation(scanParam)
+            setCurrentSearchQuery(q)
+            const res = await fetch(`/api/rack/search?location=${encodeURIComponent(q)}`)
+            const data = await res.json()
+            if (data.success) {
+              setItems(data.items)
+              setSearchedLocation(null)
+            }
+          }
+        } catch (error) {
+          console.error('Rack search error:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      doSearch()
+
+      // URL에서 scan 파라미터 제거 (히스토리 유지)
+      router.replace('/', { scroll: false })
+    }
+  }, [searchParams, router])
 
   // 품목코드 자동완성 검색
   useEffect(() => {
@@ -525,7 +615,7 @@ export default function Home() {
         body: JSON.stringify({
           rackId: outboundItem.id,
           qty,
-          user: 'mobile',
+          user: user?.name || '익명',
         }),
       })
       const data = await res.json()
@@ -672,18 +762,20 @@ export default function Home() {
       ? expandLocation(moveForm.toLocation)
       : moveForm.toLocation
 
+    const moveData = {
+      rackId: moveItem.id,
+      toStorage: moveForm.toStorage,
+      toLocation: finalLocation,
+      qty,
+      user: user?.name || '익명',
+    }
+
     setMoveLoading(true)
     try {
       const res = await fetch('/api/transaction/move', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rackId: moveItem.id,
-          toStorage: moveForm.toStorage,
-          toLocation: finalLocation,
-          qty,
-          user: 'mobile',
-        }),
+        body: JSON.stringify(moveData),
       })
       const data = await res.json()
       if (data.success) {
@@ -695,6 +787,16 @@ export default function Home() {
             : item
         ).filter(item => item.nowQty > 0))
         setTimeout(() => setMoveItem(null), 1500)
+      } else if (data.canMerge) {
+        // 병합 가능한 경우 모달 표시 (Dialog를 먼저 닫음)
+        setMoveItem(null)
+        setMoveMergeInfo({
+          existingItem: data.existingItem,
+          moveQty: data.moveQty,
+          mergedQty: data.mergedQty,
+        })
+        setPendingMoveData(moveData)
+        setShowMoveMergeModal(true)
       } else {
         setMoveMessage({ type: 'error', text: data.message })
       }
@@ -703,6 +805,53 @@ export default function Home() {
     } finally {
       setMoveLoading(false)
     }
+  }
+
+  // 이동 병합 확인 처리
+  const handleMoveMergeConfirm = async () => {
+    if (!pendingMoveData) return
+
+    setMoveMergeLoading(true)
+    try {
+      const res = await fetch('/api/transaction/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...pendingMoveData,
+          merge: true,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        // 목록 업데이트
+        setItems(prev => prev.map(item =>
+          item.id === pendingMoveData.rackId
+            ? { ...item, nowQty: item.nowQty - pendingMoveData.qty }
+            : item
+        ).filter(item => item.nowQty > 0))
+        // 성공 메시지 표시 (토스트 형태로)
+        setToastMessage({ type: 'success', text: data.message })
+        setTimeout(() => setToastMessage(null), 3000)
+      } else {
+        setToastMessage({ type: 'error', text: data.message })
+        setTimeout(() => setToastMessage(null), 3000)
+      }
+    } catch {
+      setToastMessage({ type: 'error', text: '병합 처리 중 오류가 발생했습니다' })
+      setTimeout(() => setToastMessage(null), 3000)
+    } finally {
+      setMoveMergeLoading(false)
+      setShowMoveMergeModal(false)
+      setMoveMergeInfo(null)
+      setPendingMoveData(null)
+    }
+  }
+
+  // 이동 병합 취소
+  const handleMoveMergeCancel = () => {
+    setShowMoveMergeModal(false)
+    setMoveMergeInfo(null)
+    setPendingMoveData(null)
   }
 
   // 수정 처리
@@ -721,7 +870,7 @@ export default function Home() {
           nowQty: parseInt(editForm.nowQty),
           inDay: editForm.inDay || null,
           remark: editForm.remark || null,
-          user: 'mobile',
+          user: user?.name || '익명',
         }),
       })
       const data = await res.json()
@@ -753,6 +902,24 @@ export default function Home() {
 
   return (
     <div className="p-4 pb-8">
+      {/* 토스트 메시지 */}
+      {toastMessage && (
+        <div
+          className={`fixed top-4 left-4 right-4 z-[300] p-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2 ${
+            toastMessage.type === 'success'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-destructive text-destructive-foreground'
+          }`}
+        >
+          {toastMessage.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+          ) : (
+            <XCircle className="w-5 h-5 shrink-0" />
+          )}
+          <span className="text-sm font-medium">{toastMessage.text}</span>
+        </div>
+      )}
+
       {/* Search Section */}
       <div className="mb-6">
         <h2 className="text-xl font-bold text-foreground mb-1">재고 검색</h2>
@@ -821,7 +988,7 @@ export default function Home() {
                       index === selectedIndex ? 'bg-accent' : 'hover:bg-muted'
                     }`}
                   >
-                    <span className="text-primary font-mono text-sm">{item.itemCode}</span>
+                    <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
                     <p className="text-foreground text-sm mt-0.5">{item.itemName}</p>
                   </div>
                 ))}
@@ -883,7 +1050,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Warehouse className="w-3 h-3" />
-                      <span>{getWarehouseName(suggestion.storage)}</span>
+                      <span>{suggestion.storage}</span>
                     </div>
                   </div>
                 ))}
@@ -927,7 +1094,7 @@ export default function Home() {
               <div className="flex items-center gap-2 text-white">
                 <MapPin className="w-4 h-4" />
                 <span className="font-medium">{searchedLocation.location}</span>
-                <span className="text-blue-200 text-sm">{getWarehouseName(searchedLocation.storage)}</span>
+                <span className="text-blue-200 text-sm">{searchedLocation.storage}</span>
               </div>
             </div>
           )}
@@ -958,11 +1125,9 @@ export default function Home() {
                 <CardContent className="p-0">
                   <div className="p-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <span className="bg-accent text-accent-foreground text-xs font-mono px-2 py-0.5 rounded">
-                          {item.itemCode}
-                        </span>
-                        <p className="font-medium text-foreground mt-1 text-sm">{item.itemName}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-foreground text-base">{item.itemCode}</p>
+                        <p className="text-muted-foreground mt-0.5 text-xs truncate">{item.itemName}</p>
 
                         <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
@@ -971,7 +1136,7 @@ export default function Home() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Warehouse className="w-3 h-3" />
-                            {getWarehouseName(item.storage)}
+                            {item.storage}
                           </span>
                           <span className="flex items-center gap-1">
                             <CalendarIcon className="w-3 h-3" />
@@ -980,12 +1145,12 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="text-right ml-3">
-                        <div className="flex items-center gap-1">
+                      <div className="text-right ml-3 shrink-0">
+                        <div className="flex items-center gap-1 whitespace-nowrap">
                           <Package className="w-4 h-4 text-primary" />
                           <span className="text-lg font-bold text-primary">{formatNumber(item.nowQty)}</span>
+                          <span className="text-xs text-muted-foreground">개</span>
                         </div>
-                        <span className="text-xs text-muted-foreground">개</span>
                       </div>
                     </div>
                   </div>
@@ -1126,7 +1291,7 @@ export default function Home() {
               <div className="bg-muted rounded-xl p-3">
                 <p className="text-sm text-muted-foreground">위치</p>
                 <p className="font-medium text-foreground">{editItem.location}</p>
-                <p className="text-xs text-muted-foreground mt-1">{getWarehouseName(editItem.storage)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{editItem.storage}</p>
               </div>
               <div className="relative">
                 <label className="text-sm font-medium text-foreground mb-1.5 block">품목코드</label>
@@ -1156,7 +1321,7 @@ export default function Home() {
                           index === editSelectedIndex ? 'bg-accent' : 'hover:bg-muted'
                         }`}
                       >
-                        <span className="text-primary font-mono text-sm">{item.itemCode}</span>
+                        <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
                         <p className="text-foreground text-xs mt-0.5 truncate">{item.itemName}</p>
                       </div>
                     ))}
@@ -1276,7 +1441,7 @@ export default function Home() {
               <div className="bg-teal-50 dark:bg-teal-900/30 rounded-xl p-3">
                 <p className="text-sm text-teal-700 dark:text-teal-300">현재 위치</p>
                 <p className="font-bold text-teal-600 dark:text-teal-400">{moveItem.location}</p>
-                <p className="text-xs text-teal-500 dark:text-teal-400 mt-0.5">{getWarehouseName(moveItem.storage)} · {formatNumber(moveItem.nowQty)}개</p>
+                <p className="text-xs text-teal-500 dark:text-teal-400 mt-0.5">{moveItem.storage} · {formatNumber(moveItem.nowQty)}개</p>
               </div>
 
               {/* 목적지 창고 */}
@@ -1290,7 +1455,7 @@ export default function Home() {
                     className="w-full pl-10 pr-10 h-11 rounded-lg border border-input bg-background text-foreground text-base appearance-none focus:border-ring focus:ring-1 focus:ring-ring focus:outline-none"
                   >
                     {warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>
+                      <option key={w.id} value={w.name}>
                         {w.name}
                       </option>
                     ))}
@@ -1340,8 +1505,8 @@ export default function Home() {
                           index === moveLocationSelectedIndex ? 'bg-accent' : 'hover:bg-muted'
                         }`}
                       >
-                        <span className="text-primary font-mono text-sm">{suggestion.location}</span>
-                        <span className="text-muted-foreground text-xs ml-2">({getWarehouseName(suggestion.storage)})</span>
+                        <span className="text-primary text-sm font-semibold">{suggestion.location}</span>
+                        <span className="text-muted-foreground text-xs ml-2">({suggestion.storage})</span>
                       </div>
                     ))}
                   </div>
@@ -1400,6 +1565,80 @@ export default function Home() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 이동 병합 확인 모달 */}
+      <AlertDialog open={showMoveMergeModal} onOpenChange={(open) => !open && handleMoveMergeCancel()}>
+        <AlertDialogContent className="rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <AlertDialogTitle className="text-lg font-bold">수량 병합 확인</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-left pt-2">
+              이동 위치에 동일한 품목이 이미 존재합니다.<br />
+              수량을 병합하시겠습니까?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {moveMergeInfo && (
+            <div className="bg-muted rounded-xl p-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">품목명</span>
+                <span className="font-medium text-foreground">{moveMergeInfo.existingItem.itemName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">기존 수량</span>
+                <span className="font-medium text-foreground">{moveMergeInfo.existingItem.currentQty}개</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">이동 수량</span>
+                <span className="font-medium text-teal-600">+{moveMergeInfo.moveQty}개</span>
+              </div>
+              <div className="border-t border-border pt-2 mt-2">
+                <div className="flex justify-between">
+                  <span className="font-medium text-foreground">병합 후 수량</span>
+                  <span className="font-bold text-primary">{moveMergeInfo.mergedQty}개</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <AlertDialogFooter className="flex-row gap-2">
+            <AlertDialogCancel
+              onClick={handleMoveMergeCancel}
+              disabled={moveMergeLoading}
+              className="flex-1 h-11 rounded-xl"
+            >
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMoveMergeConfirm}
+              disabled={moveMergeLoading}
+              className="flex-1 h-11 rounded-xl bg-teal-600 hover:bg-teal-700"
+            >
+              {moveMergeLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  처리 중...
+                </span>
+              ) : (
+                '병합'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  )
+}
+
+// Suspense로 감싸서 useSearchParams 사용 가능하게
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="p-4 text-center">로딩 중...</div>}>
+      <HomeContent />
+    </Suspense>
   )
 }

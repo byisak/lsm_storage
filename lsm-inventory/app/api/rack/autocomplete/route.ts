@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { executeQuery } from '@/lib/oracle'
 import { expandLocation } from '@/lib/location-utils'
+
+interface RackLocation {
+  STORAGE: string
+  LOCATION: string
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,24 +20,20 @@ export async function GET(request: NextRequest) {
     const expanded = expandLocation(query)
 
     // 고유 위치 목록 가져오기
-    const racks = await prisma.lsMotorRack.findMany({
-      select: {
-        storage: true,
-        location: true,
-      },
-      distinct: ['storage', 'location'],
-    })
+    const racks = await executeQuery<RackLocation>(
+      `SELECT DISTINCT STORAGE, LOCATION FROM LS_MOTOR_RACK`
+    )
 
     // 검색어로 필터링
     const searchUpper = expanded.toUpperCase()
     const filtered = racks.filter(rack =>
-      rack.location.toUpperCase().includes(searchUpper)
+      rack.LOCATION.toUpperCase().includes(searchUpper)
     )
 
     // 위치별로 그룹화하고 정렬
     const uniqueLocations = [...new Set(filtered.map(r => ({
-      location: r.location,
-      storage: r.storage
+      location: r.LOCATION,
+      storage: r.STORAGE
     })))]
 
     // 최대 10개만 반환

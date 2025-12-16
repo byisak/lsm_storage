@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, MapPin, Package, FileText, Loader2, CheckCircle2, XCircle, ChevronLeft, Minus, Warehouse } from 'lucide-react'
-import { getWarehouseName } from '@/lib/warehouse-config'
+import { useAuth } from '@/lib/auth-context'
 
 interface RackItem {
   id: number
@@ -17,6 +17,7 @@ interface RackItem {
 }
 
 export default function TransactionOutPage() {
+  const { user } = useAuth()
   const [location, setLocation] = useState('')
   const [items, setItems] = useState<RackItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -65,7 +66,7 @@ export default function TransactionOutPage() {
           rackId: selectedItem.id,
           qty: parseInt(outQty),
           remark,
-          user: 'mobile',
+          user: user?.name || '익명',
         }),
       })
 
@@ -154,7 +155,7 @@ export default function TransactionOutPage() {
             <div className="p-4 bg-gradient-to-r from-orange-50 to-orange-100/50 rounded-xl mb-4">
               <p className="text-xs text-orange-600 font-medium">선택된 품목</p>
               <p className="font-semibold text-gray-900 mt-1">{selectedItem.itemName}</p>
-              <p className="text-sm text-gray-500 font-mono">{selectedItem.itemCode}</p>
+              <p className="text-sm text-gray-500">{selectedItem.itemCode}</p>
               <div className="flex items-center gap-2 mt-2">
                 <Package className="w-4 h-4 text-orange-500" />
                 <span className="text-sm">
@@ -227,7 +228,7 @@ export default function TransactionOutPage() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="bg-gray-100 text-gray-700 text-xs font-mono px-2 py-0.5 rounded">
+                    <span className="bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded">
                       {item.itemCode}
                     </span>
                     <p className="font-medium text-gray-900 mt-1.5">{item.itemName}</p>
@@ -238,7 +239,7 @@ export default function TransactionOutPage() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Warehouse className="w-3 h-3" />
-                        {getWarehouseName(item.storage)}
+                        {item.storage}
                       </span>
                     </div>
                   </div>

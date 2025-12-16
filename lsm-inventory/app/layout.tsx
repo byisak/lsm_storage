@@ -1,19 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { MobileHeader } from "@/components/layout/MobileHeader";
-import { BottomNav } from "@/components/layout/BottomNav";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { AuthProvider } from "@/lib/auth-context";
+import { WarehouseProvider } from "@/lib/warehouse-context";
+import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 
 export const metadata: Metadata = {
   title: "LS Mecapion - 재고관리",
@@ -34,20 +24,28 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background`}
-      >
+      <head>
+        <link
+          rel="stylesheet"
+          as="style"
+          crossOrigin="anonymous"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
+        />
+      </head>
+      <body className="antialiased bg-background font-pretendard">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <MobileHeader />
-          <main className="pt-14 pb-20 min-h-screen">
-            {children}
-          </main>
-          <BottomNav />
+          <AuthProvider>
+            <WarehouseProvider>
+              <LayoutWrapper>
+                {children}
+              </LayoutWrapper>
+            </WarehouseProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

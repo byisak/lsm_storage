@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { executeQuery, LsMotorRack } from '@/lib/oracle'
+
+// 조회 결과를 camelCase로 변환하는 헬퍼 함수
+function formatItems(items: LsMotorRack[]) {
+  return items.map(item => ({
+    id: item.ID,
+    storage: item.STORAGE,
+    location: item.LOCATION,
+    itemCode: item.ITEM_CODE,
+    itemName: item.ITEM_NAME,
+    nowQty: item.NOW_QTY,
+    inDay: item.IN_DAY,
+    remark: item.REMARK,
+  }))
+}
 
 // QR 스캔 앱에서 POST 요청 수신
 // 형식: "1|A-01-01" (창고번호|위치)
@@ -17,22 +31,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const storageVal = storage.trim()
+    const locationVal = location.trim()
+
     // 해당 위치의 재고 조회
-    const items = await prisma.lsMotorRack.findMany({
-      where: {
-        storage: storage.trim(),
-        location: location.trim(),
-      },
-      orderBy: {
-        inDay: 'desc',
-      },
-    })
+    const items = await executeQuery<LsMotorRack>(
+      `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+       FROM LS_MOTOR_RACK
+       WHERE STORAGE = :storage AND LOCATION = :location
+       ORDER BY IN_DAY DESC NULLS LAST`,
+      { storage: storageVal, location: locationVal }
+    )
 
     return NextResponse.json({
       success: true,
-      storage: storage.trim(),
-      location: location.trim(),
-      items,
+      storage: storageVal,
+      location: locationVal,
+      items: formatItems(items),
       count: items.length,
     })
   } catch (error) {
@@ -69,21 +84,22 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const items = await prisma.lsMotorRack.findMany({
-      where: {
-        storage: storageValue.trim(),
-        location: locationValue.trim(),
-      },
-      orderBy: {
-        inDay: 'desc',
-      },
-    })
+    const storageVal = storageValue.trim()
+    const locationVal = locationValue.trim()
+
+    const items = await executeQuery<LsMotorRack>(
+      `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+       FROM LS_MOTOR_RACK
+       WHERE STORAGE = :storage AND LOCATION = :location
+       ORDER BY IN_DAY DESC NULLS LAST`,
+      { storage: storageVal, location: locationVal }
+    )
 
     return NextResponse.json({
       success: true,
-      storage: storageValue.trim(),
-      location: locationValue.trim(),
-      items,
+      storage: storageVal,
+      location: locationVal,
+      items: formatItems(items),
       count: items.length,
     })
   } catch (error) {

@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, ArrowDownToLine, ArrowUpFromLine, MapPin, Warehouse, User, Loader2, ClipboardX, Pencil, MoveRight } from 'lucide-react'
-import { getWarehouseName } from '@/lib/warehouse-config'
 
 interface SubulItem {
   id: number
@@ -146,7 +145,7 @@ export default function TransactionHistoryPage() {
                     </div>
 
                     <p className="font-medium text-foreground mt-1 truncate">{item.itemName}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{item.itemCode}</p>
+                    <p className="text-xs text-muted-foreground">{item.itemCode}</p>
 
                     <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
@@ -155,7 +154,7 @@ export default function TransactionHistoryPage() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Warehouse className="w-3 h-3" />
-                        {getWarehouseName(item.storage)}
+                        {item.storage}
                       </span>
                       <span className="flex items-center gap-1">
                         <User className="w-3 h-3" />

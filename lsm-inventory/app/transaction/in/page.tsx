@@ -5,9 +5,20 @@ import { useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Warehouse, MapPin, Package, Hash, FileText, Loader2, CheckCircle2, XCircle, ChevronDown, History } from 'lucide-react'
-import { getWarehouses, getWarehouseName, WarehouseConfig } from '@/lib/warehouse-config'
+import { Warehouse, MapPin, Package, Hash, FileText, Loader2, CheckCircle2, XCircle, ChevronDown, History, AlertTriangle } from 'lucide-react'
+import { useWarehouses } from '@/lib/warehouse-context'
+import { useAuth } from '@/lib/auth-context'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 
 interface AutocompleteItem {
   itemCode: string
@@ -19,9 +30,20 @@ interface LocationSuggestion {
   storage: string
 }
 
+interface MergeInfo {
+  existingItem: {
+    id: number
+    currentQty: number
+    itemName: string
+  }
+  newQty: number
+  mergedQty: number
+}
+
 function TransactionInContent() {
   const searchParams = useSearchParams()
-  const [warehouses, setWarehouses] = useState<WarehouseConfig[]>([])
+  const { warehouses } = useWarehouses()
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     storage: '',
     location: '',
@@ -33,6 +55,20 @@ function TransactionInContent() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [prefilledLocation, setPrefilledLocation] = useState<string | null>(null)
+
+  // 병합 확인 모달 상태
+  const [showMergeModal, setShowMergeModal] = useState(false)
+  const [mergeInfo, setMergeInfo] = useState<MergeInfo | null>(null)
+  const [mergeLoading, setMergeLoading] = useState(false)
+  const [pendingFormData, setPendingFormData] = useState<{
+    storage: string
+    location: string
+    itemCode: string
+    itemName: string
+    qty: number
+    remark: string
+    user: string
+  } | null>(null)
 
   // 품목코드 자동완성 관련 상태
   const [suggestions, setSuggestions] = useState<AutocompleteItem[]>([])
@@ -58,8 +94,6 @@ function TransactionInContent() {
   const recentItemsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setWarehouses(getWarehouses())
-
     // 최근 입력 기록 로드
     const fetchRecentHistory = async () => {
       try {
@@ -310,15 +344,63 @@ function TransactionInContent() {
       ? expandLocation(formData.location)
       : formData.location
 
+    const submitData = {
+      ...formData,
+      location: finalLocation,
+      qty: parseInt(formData.qty),
+      user: user?.name || '익명',
+    }
+
+    try {
+      const res = await fetch('/api/transaction/in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submitData),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setMessage({ type: 'success', text: data.message })
+        setFormData({
+          storage: formData.storage,
+          location: '',
+          itemCode: '',
+          itemName: '',
+          qty: '',
+          remark: '',
+        })
+      } else if (data.canMerge) {
+        // 병합 가능한 경우 모달 표시
+        setMergeInfo({
+          existingItem: data.existingItem,
+          newQty: data.newQty,
+          mergedQty: data.mergedQty,
+        })
+        setPendingFormData(submitData)
+        setShowMergeModal(true)
+      } else {
+        setMessage({ type: 'error', text: data.message })
+      }
+    } catch {
+      setMessage({ type: 'error', text: '오류가 발생했습니다.' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 병합 확인 처리
+  const handleMergeConfirm = async () => {
+    if (!pendingFormData) return
+
+    setMergeLoading(true)
     try {
       const res = await fetch('/api/transaction/in', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
-          location: finalLocation,
-          qty: parseInt(formData.qty),
-          user: 'mobile',
+          ...pendingFormData,
+          merge: true,
         }),
       })
 
@@ -338,10 +420,20 @@ function TransactionInContent() {
         setMessage({ type: 'error', text: data.message })
       }
     } catch {
-      setMessage({ type: 'error', text: '오류가 발생했습니다.' })
+      setMessage({ type: 'error', text: '병합 처리 중 오류가 발생했습니다.' })
     } finally {
-      setLoading(false)
+      setMergeLoading(false)
+      setShowMergeModal(false)
+      setMergeInfo(null)
+      setPendingFormData(null)
     }
+  }
+
+  // 병합 취소
+  const handleMergeCancel = () => {
+    setShowMergeModal(false)
+    setMergeInfo(null)
+    setPendingFormData(null)
   }
 
   return (
@@ -382,7 +474,7 @@ function TransactionInContent() {
                 >
                   <option value="">창고 선택</option>
                   {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>
+                    <option key={w.id} value={w.name}>
                       {w.name}
                     </option>
                   ))}
@@ -434,7 +526,7 @@ function TransactionInContent() {
                           index === locationSelectedIndex ? 'bg-accent' : 'hover:bg-muted'
                         }`}
                       >
-                        <span className="text-primary font-mono text-sm">{item.location}</span>
+                        <span className="text-primary text-sm font-semibold">{item.location}</span>
                         <span className="text-muted-foreground text-xs ml-2">({item.storage})</span>
                       </div>
                     ))}
@@ -463,8 +555,8 @@ function TransactionInContent() {
                           onClick={() => handleSelectRecentLocation(loc)}
                           className="px-3 py-2.5 cursor-pointer border-b border-border last:border-b-0 hover:bg-accent"
                         >
-                          <span className="text-primary font-mono text-sm">{loc.location}</span>
-                          <span className="text-muted-foreground text-xs ml-2">({getWarehouseName(loc.storage)})</span>
+                          <span className="text-primary text-sm font-semibold">{loc.location}</span>
+                          <span className="text-muted-foreground text-xs ml-2">({loc.storage})</span>
                         </div>
                       ))}
                     </div>
@@ -509,7 +601,7 @@ function TransactionInContent() {
                           index === selectedIndex ? 'bg-accent' : 'hover:bg-muted'
                         }`}
                       >
-                        <span className="text-primary font-mono text-sm">{item.itemCode}</span>
+                        <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
                         <p className="text-foreground text-sm mt-0.5">{item.itemName}</p>
                       </div>
                     ))}
@@ -538,7 +630,7 @@ function TransactionInContent() {
                           onClick={() => handleSelectRecentItem(item)}
                           className="px-3 py-2.5 cursor-pointer border-b border-border last:border-b-0 hover:bg-accent"
                         >
-                          <span className="text-primary font-mono text-sm">{item.itemCode}</span>
+                          <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
                           <p className="text-muted-foreground text-xs mt-0.5 truncate">{item.itemName}</p>
                         </div>
                       ))}
@@ -644,6 +736,71 @@ function TransactionInContent() {
           </form>
         </CardContent>
       </Card>
+
+      {/* 병합 확인 모달 */}
+      <AlertDialog open={showMergeModal} onOpenChange={(open) => !open && handleMergeCancel()}>
+        <AlertDialogContent className="rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <AlertDialogTitle className="text-lg font-bold">수량 병합 확인</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-left pt-2">
+              해당 위치에 동일한 품목이 이미 존재합니다.<br />
+              수량을 병합하시겠습니까?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {mergeInfo && (
+            <div className="bg-muted rounded-xl p-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">품목명</span>
+                <span className="font-medium text-foreground">{mergeInfo.existingItem.itemName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">기존 수량</span>
+                <span className="font-medium text-foreground">{mergeInfo.existingItem.currentQty}개</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">추가 수량</span>
+                <span className="font-medium text-emerald-600">+{mergeInfo.newQty}개</span>
+              </div>
+              <div className="border-t border-border pt-2 mt-2">
+                <div className="flex justify-between">
+                  <span className="font-medium text-foreground">병합 후 수량</span>
+                  <span className="font-bold text-primary">{mergeInfo.mergedQty}개</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <AlertDialogFooter className="flex-row gap-2">
+            <AlertDialogCancel
+              onClick={handleMergeCancel}
+              disabled={mergeLoading}
+              className="flex-1 h-11 rounded-xl"
+            >
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMergeConfirm}
+              disabled={mergeLoading}
+              className="flex-1 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700"
+            >
+              {mergeLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  처리 중...
+                </span>
+              ) : (
+                '병합'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
