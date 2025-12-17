@@ -146,13 +146,16 @@ function HomeContent() {
   const moveLocationSuggestionsRef = useRef<HTMLDivElement>(null)
 
   // 창고 컨텍스트에서 창고 목록 및 이름 조회 함수 가져오기
-  const { warehouses, getWarehouseName } = useWarehouses()
+  const { warehouses, loading: warehousesLoading, getWarehouseName } = useWarehouses()
 
   // 로그인 사용자 정보
   const { user } = useAuth()
 
   // URL 파라미터로 QR 스캔 자동 검색
   useEffect(() => {
+    // 창고 목록 로드 완료 후에만 스캔 실행
+    if (warehousesLoading) return
+
     const scanParam = searchParams.get('scan')
     if (scanParam) {
       // 랙 검색 탭으로 전환하고 자동 검색
@@ -210,7 +213,7 @@ function HomeContent() {
       // URL에서 scan 파라미터 제거 (히스토리 유지)
       router.replace('/', { scroll: false })
     }
-  }, [searchParams, router])
+  }, [searchParams, router, warehousesLoading, getWarehouseName])
 
   // 검색 기록 로드 (컴포넌트 마운트 시)
   useEffect(() => {
