@@ -190,7 +190,7 @@ export default function WarehouseSettingsPage() {
           <Shield className="w-5 h-5 text-orange-500" />
           <h2 className="text-lg font-bold text-foreground">창고 설정</h2>
         </div>
-        <p className="text-sm text-muted-foreground">창고 ID와 이름을 설정합니다 (DB 저장)</p>
+        <p className="text-sm text-muted-foreground">창고 ID와 이름을 설정합니다</p>
       </div>
 
       <Card className="border-0 shadow-sm">
