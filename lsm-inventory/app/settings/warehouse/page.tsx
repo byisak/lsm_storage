@@ -25,6 +25,7 @@ export default function WarehouseSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [duplicateIds, setDuplicateIds] = useState<Set<string>>(new Set())
 
   // 관리자 권한 확인
   useEffect(() => {
@@ -58,11 +59,15 @@ export default function WarehouseSettingsPage() {
     const updated = [...warehouses]
     updated[index] = { ...updated[index], [field]: value }
     setWarehouses(updated)
+    // ID 변경 시 중복 에러 초기화
+    if (field === 'id') {
+      setDuplicateIds(new Set())
+      setMessage(null)
+    }
   }
 
   const handleAdd = () => {
-    const nextId = String(Math.max(...warehouses.map(w => parseInt(w.id) || 0), 0) + 1)
-    setWarehouses([...warehouses, { id: nextId, name: '', isNew: true }])
+    setWarehouses([...warehouses, { id: '', name: '', isNew: true }])
   }
 
   const handleRemove = async (index: number) => {
@@ -100,6 +105,27 @@ export default function WarehouseSettingsPage() {
   const handleSave = async () => {
     setSaving(true)
     setMessage(null)
+    setDuplicateIds(new Set())
+
+    // 중복 ID 검사
+    const idCounts = new Map<string, number>()
+    const duplicates = new Set<string>()
+
+    for (const w of warehouses) {
+      if (!w.id) continue
+      const count = (idCounts.get(w.id) || 0) + 1
+      idCounts.set(w.id, count)
+      if (count > 1) {
+        duplicates.add(w.id)
+      }
+    }
+
+    if (duplicates.size > 0) {
+      setDuplicateIds(duplicates)
+      setMessage({ type: 'error', text: `중복된 ID가 있습니다: ${Array.from(duplicates).join(', ')}` })
+      setSaving(false)
+      return
+    }
 
     try {
       // 새 항목 추가 및 기존 항목 수정
@@ -164,22 +190,27 @@ export default function WarehouseSettingsPage() {
           <Shield className="w-5 h-5 text-orange-500" />
           <h2 className="text-lg font-bold text-foreground">창고 설정</h2>
         </div>
-        <p className="text-sm text-muted-foreground">창고 번호별 이름을 설정합니다 (DB 저장)</p>
+        <p className="text-sm text-muted-foreground">창고 ID와 이름을 설정합니다</p>
       </div>
 
       <Card className="border-0 shadow-sm">
         <CardContent className="p-5">
           <div className="space-y-3">
             {warehouses.map((warehouse, index) => (
-              <div key={warehouse.id + index} className="flex items-center gap-2">
-                <div className="relative w-20">
+              <div key={index} className="flex items-center gap-2">
+                <div className="relative w-24">
                   <Input
                     type="text"
                     value={warehouse.id}
-                    onChange={(e) => handleChange(index, 'id', e.target.value)}
-                    placeholder="번호"
-                    className="h-11 text-center rounded-lg"
+                    onChange={(e) => handleChange(index, 'id', e.target.value.toUpperCase())}
+                    placeholder="ID"
+                    className={`h-11 text-center rounded-lg font-mono ${
+                      duplicateIds.has(warehouse.id)
+                        ? 'border-red-500 border-2 focus:border-red-500 focus:ring-red-500'
+                        : ''
+                    }`}
                     disabled={!warehouse.isNew}
+                    maxLength={10}
                   />
                 </div>
                 <div className="flex-1 relative">

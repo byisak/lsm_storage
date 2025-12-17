@@ -14,8 +14,8 @@ export function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-      <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
+    <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+      <div className="flex items-center gap-1 px-2 py-2 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl rounded-full shadow-lg border border-white/20 dark:border-zinc-700/50">
         {navItems.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href))
@@ -25,17 +25,13 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+              className={`flex flex-col items-center justify-center px-5 py-2 rounded-full transition-all ${
                 isActive
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-white/80 dark:bg-zinc-700/80 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
               }`}
             >
-              <div className={`p-1.5 rounded-xl transition-colors ${
-                isActive ? 'bg-accent' : ''
-              }`}>
-                <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
-              </div>
+              <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
               <span className={`text-[10px] mt-0.5 ${isActive ? 'font-semibold' : 'font-medium'}`}>
                 {item.label}
               </span>

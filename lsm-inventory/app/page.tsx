@@ -14,12 +14,13 @@ import {
 } from '@/components/ui/dialog'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Search, Loader2, Package, MapPin, Warehouse, Calendar as CalendarIcon, PackageSearch, ArrowUpFromLine, Pencil, CheckCircle2, XCircle, PackageX, PackagePlus, MoveRight, ChevronDown, AlertTriangle } from 'lucide-react'
+import { Search, Loader2, Package, MapPin, Warehouse, Calendar as CalendarIcon, PackageSearch, ArrowUpFromLine, Pencil, CheckCircle2, XCircle, PackageX, PackagePlus, MoveRight, ChevronDown, AlertTriangle, Clock } from 'lucide-react'
 import { useWarehouses, WarehouseConfig } from '@/lib/warehouse-context'
 import { useAuth } from '@/lib/auth-context'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
+import { getItemSearchHistory, addItemSearchHistory, getRackSearchHistory, addRackSearchHistory } from '@/lib/search-history'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -79,6 +80,10 @@ function HomeContent() {
   const [currentSearchQuery, setCurrentSearchQuery] = useState('')
   const locationInputRef = useRef<HTMLInputElement>(null)
   const locationSuggestionsRef = useRef<HTMLDivElement>(null)
+
+  // 검색 기록 상태
+  const [itemSearchHistory, setItemSearchHistory] = useState<string[]>([])
+  const [rackSearchHistory, setRackSearchHistory] = useState<string[]>([])
 
   // 출고 모달 상태
   const [outboundItem, setOutboundItem] = useState<RackItem | null>(null)
@@ -141,13 +146,16 @@ function HomeContent() {
   const moveLocationSuggestionsRef = useRef<HTMLDivElement>(null)
 
   // 창고 컨텍스트에서 창고 목록 및 이름 조회 함수 가져오기
-  const { warehouses, getWarehouseName } = useWarehouses()
+  const { warehouses, loading: warehousesLoading, getWarehouseName } = useWarehouses()
 
   // 로그인 사용자 정보
   const { user } = useAuth()
 
   // URL 파라미터로 QR 스캔 자동 검색
   useEffect(() => {
+    // 창고 목록 로드 완료 후에만 스캔 실행
+    if (warehousesLoading) return
+
     const scanParam = searchParams.get('scan')
     if (scanParam) {
       // 랙 검색 탭으로 전환하고 자동 검색
@@ -205,7 +213,13 @@ function HomeContent() {
       // URL에서 scan 파라미터 제거 (히스토리 유지)
       router.replace('/', { scroll: false })
     }
-  }, [searchParams, router])
+  }, [searchParams, router, warehousesLoading, getWarehouseName])
+
+  // 검색 기록 로드 (컴포넌트 마운트 시)
+  useEffect(() => {
+    setItemSearchHistory(getItemSearchHistory())
+    setRackSearchHistory(getRackSearchHistory())
+  }, [])
 
   // 품목코드 자동완성 검색
   useEffect(() => {
@@ -433,6 +447,11 @@ function HomeContent() {
     setSuggestions([])
     setLoading(true)
     setSearched(true)
+
+    // 검색 기록 저장
+    const updatedHistory = addItemSearchHistory(q)
+    setItemSearchHistory(updatedHistory)
+
     try {
       const res = await fetch(`/api/item/search?q=${encodeURIComponent(q)}`)
       const data = await res.json()
@@ -460,6 +479,10 @@ function HomeContent() {
     setLoading(true)
     setSearched(true)
     setCurrentSearchQuery(q)
+
+    // 검색 기록 저장
+    const updatedHistory = addRackSearchHistory(q)
+    setRackSearchHistory(updatedHistory)
 
     try {
       if (q.includes('|')) {
@@ -950,48 +973,74 @@ function HomeContent() {
 
         {/* 품목 검색 입력 */}
         {activeTab === 'item' && (
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
-            <Input
-              ref={inputRef}
-              type="text"
-              placeholder="품목코드 또는 품목명 입력"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
-                setSelectedIndex(-1)
-                setHasSearched(false)
-              }}
-              onKeyDown={handleKeyDown}
-              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              className="pl-12 pr-24 h-14 text-base rounded-2xl border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            />
-            <Button
-              onClick={() => handleSearch()}
-              disabled={loading}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 z-10"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
-            </Button>
-
-            {/* 품목 자동완성 드롭다운 */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div
-                ref={suggestionsRef}
-                className="absolute top-full left-0 right-0 mt-1 bg-popover rounded-xl shadow-lg border border-border overflow-hidden z-50"
+          <div>
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
+              <Input
+                ref={inputRef}
+                type="text"
+                placeholder="품목코드 또는 품목명 입력"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setSelectedIndex(-1)
+                  setHasSearched(false)
+                }}
+                onKeyDown={handleKeyDown}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                className="pl-12 pr-24 h-14 text-base rounded-2xl border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+              <Button
+                onClick={() => handleSearch()}
+                disabled={loading}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 z-10"
               >
-                {suggestions.map((item, index) => (
-                  <div
-                    key={item.itemCode}
-                    onClick={() => handleSelectSuggestion(item)}
-                    className={`px-4 py-3 cursor-pointer border-b border-border last:border-b-0 ${
-                      index === selectedIndex ? 'bg-accent' : 'hover:bg-muted'
-                    }`}
-                  >
-                    <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
-                    <p className="text-foreground text-sm mt-0.5">{item.itemName}</p>
-                  </div>
-                ))}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
+              </Button>
+
+              {/* 품목 자동완성 드롭다운 */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  ref={suggestionsRef}
+                  className="absolute top-full left-0 right-0 mt-1 bg-popover rounded-xl shadow-lg border border-border overflow-hidden z-50"
+                >
+                  {suggestions.map((item, index) => (
+                    <div
+                      key={item.itemCode}
+                      onClick={() => handleSelectSuggestion(item)}
+                      className={`px-4 py-3 cursor-pointer border-b border-border last:border-b-0 ${
+                        index === selectedIndex ? 'bg-accent' : 'hover:bg-muted'
+                      }`}
+                    >
+                      <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
+                      <p className="text-foreground text-sm mt-0.5">{item.itemName}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 품목 최근 검색 기록 */}
+            {!showSuggestions && !hasSearched && itemSearchHistory.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  최근 검색
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {itemSearchHistory.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setQuery(item)
+                        handleItemSearch(item)
+                      }}
+                      className="px-3 py-1.5 text-sm bg-muted hover:bg-accent rounded-lg text-foreground transition-colors"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -999,61 +1048,87 @@ function HomeContent() {
 
         {/* 랙 검색 입력 */}
         {activeTab === 'rack' && (
-          <div className="relative">
-            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
-            <Input
-              ref={locationInputRef}
-              type="text"
-              placeholder="A11 또는 A-01-01"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
-                setLocationSelectedIndex(-1)
-                setHasSearched(false)
-              }}
-              onKeyDown={handleRackKeyDown}
-              onFocus={() => locationSuggestions.length > 0 && setShowLocationSuggestions(true)}
-              className="pl-12 pr-24 h-14 text-base rounded-2xl border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            />
-            <Button
-              onClick={() => handleSearch()}
-              disabled={loading}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 z-10"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
-            </Button>
-
-            {/* 단축 입력 힌트 */}
-            {expandedHint && !showLocationSuggestions && (
-              <div className="absolute top-full left-0 right-0 mt-1 px-3 py-2 bg-accent text-accent-foreground text-sm rounded-lg border border-border">
-                → {expandedHint} 로 검색됩니다
-              </div>
-            )}
-
-            {/* 랙 위치 자동완성 드롭다운 */}
-            {showLocationSuggestions && locationSuggestions.length > 0 && (
-              <div
-                ref={locationSuggestionsRef}
-                className="absolute top-full left-0 right-0 mt-1 bg-popover rounded-xl shadow-lg border border-border overflow-hidden z-50"
+          <div>
+            <div className="relative">
+              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
+              <Input
+                ref={locationInputRef}
+                type="text"
+                placeholder="A11 또는 A-01-01"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setLocationSelectedIndex(-1)
+                  setHasSearched(false)
+                }}
+                onKeyDown={handleRackKeyDown}
+                onFocus={() => locationSuggestions.length > 0 && setShowLocationSuggestions(true)}
+                className="pl-12 pr-24 h-14 text-base rounded-2xl border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+              <Button
+                onClick={() => handleSearch()}
+                disabled={loading}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 z-10"
               >
-                {locationSuggestions.map((suggestion, index) => (
-                  <div
-                    key={`${suggestion.storage}-${suggestion.location}`}
-                    onClick={() => handleSelectLocationSuggestion(suggestion)}
-                    className={`px-4 py-3 cursor-pointer border-b border-border last:border-b-0 flex items-center justify-between ${
-                      index === locationSelectedIndex ? 'bg-accent' : 'hover:bg-muted'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-primary" />
-                      <span className="font-medium text-foreground">{suggestion.location}</span>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
+              </Button>
+
+              {/* 단축 입력 힌트 */}
+              {expandedHint && !showLocationSuggestions && (
+                <div className="absolute top-full left-0 right-0 mt-1 px-3 py-2 bg-accent text-accent-foreground text-sm rounded-lg border border-border">
+                  → {expandedHint} 로 검색됩니다
+                </div>
+              )}
+
+              {/* 랙 위치 자동완성 드롭다운 */}
+              {showLocationSuggestions && locationSuggestions.length > 0 && (
+                <div
+                  ref={locationSuggestionsRef}
+                  className="absolute top-full left-0 right-0 mt-1 bg-popover rounded-xl shadow-lg border border-border overflow-hidden z-50"
+                >
+                  {locationSuggestions.map((suggestion, index) => (
+                    <div
+                      key={`${suggestion.storage}-${suggestion.location}`}
+                      onClick={() => handleSelectLocationSuggestion(suggestion)}
+                      className={`px-4 py-3 cursor-pointer border-b border-border last:border-b-0 flex items-center justify-between ${
+                        index === locationSelectedIndex ? 'bg-accent' : 'hover:bg-muted'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground">{suggestion.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Warehouse className="w-3 h-3" />
+                        <span>{suggestion.storage}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Warehouse className="w-3 h-3" />
-                      <span>{suggestion.storage}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 랙 최근 검색 기록 */}
+            {!showLocationSuggestions && !expandedHint && !hasSearched && rackSearchHistory.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  최근 검색
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {rackSearchHistory.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setQuery(item)
+                        handleRackSearch(item)
+                      }}
+                      className="px-3 py-1.5 text-sm bg-muted hover:bg-accent rounded-lg text-foreground transition-colors"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

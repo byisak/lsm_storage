@@ -63,6 +63,25 @@ export default function TransactionHistoryPage() {
   // 숫자 3자리 콤마 포맷팅
   const formatNumber = (num: number) => num.toLocaleString('ko-KR')
 
+  // REMARK에서 JSON 메타데이터 제거하고 표시용 텍스트만 추출
+  const parseDisplayRemark = (remark: string | null): string | null => {
+    if (!remark) return null
+
+    // JSON|표시텍스트 형식인 경우 표시텍스트만 반환
+    const pipeIndex = remark.indexOf('|')
+    if (pipeIndex !== -1 && remark.startsWith('{')) {
+      const displayPart = remark.substring(pipeIndex + 1)
+      return displayPart || null
+    }
+
+    // JSON만 있는 경우 (표시할 내용 없음)
+    if (remark.startsWith('{') && remark.endsWith('}')) {
+      return null
+    }
+
+    return remark
+  }
+
   return (
     <div className="p-4">
       {/* Search Header */}
@@ -162,9 +181,9 @@ export default function TransactionHistoryPage() {
                       </span>
                     </div>
 
-                    {item.remark && (
+                    {parseDisplayRemark(item.remark) && (
                       <p className="text-xs text-muted-foreground mt-2 bg-muted px-2 py-1 rounded">
-                        {item.remark}
+                        {parseDisplayRemark(item.remark)}
                       </p>
                     )}
                   </div>
