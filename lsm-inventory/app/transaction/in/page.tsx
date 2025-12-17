@@ -776,18 +776,18 @@ function TransactionInContent() {
             </div>
           )}
 
-          <AlertDialogFooter className="flex-row gap-2 sm:gap-2">
+          <AlertDialogFooter className="!flex-row gap-2 !justify-center">
             <AlertDialogCancel
               onClick={handleMergeCancel}
               disabled={mergeLoading}
-              className="flex-1 h-10 m-0 rounded-xl text-sm"
+              className="flex-1 h-10 !mt-0 rounded-xl text-sm"
             >
               취소
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleMergeConfirm}
               disabled={mergeLoading}
-              className="flex-1 h-10 m-0 rounded-xl text-sm bg-emerald-600 hover:bg-emerald-700"
+              className="flex-1 h-10 rounded-xl text-sm bg-emerald-600 hover:bg-emerald-700"
             >
               {mergeLoading ? (
                 <span className="flex items-center gap-2">
