@@ -61,8 +61,7 @@ export default function WarehouseSettingsPage() {
   }
 
   const handleAdd = () => {
-    const nextId = String(Math.max(...warehouses.map(w => parseInt(w.id) || 0), 0) + 1)
-    setWarehouses([...warehouses, { id: nextId, name: '', isNew: true }])
+    setWarehouses([...warehouses, { id: '', name: '', isNew: true }])
   }
 
   const handleRemove = async (index: number) => {
@@ -164,7 +163,7 @@ export default function WarehouseSettingsPage() {
           <Shield className="w-5 h-5 text-orange-500" />
           <h2 className="text-lg font-bold text-foreground">창고 설정</h2>
         </div>
-        <p className="text-sm text-muted-foreground">창고 번호별 이름을 설정합니다 (DB 저장)</p>
+        <p className="text-sm text-muted-foreground">창고 ID와 이름을 설정합니다 (DB 저장)</p>
       </div>
 
       <Card className="border-0 shadow-sm">
@@ -172,14 +171,15 @@ export default function WarehouseSettingsPage() {
           <div className="space-y-3">
             {warehouses.map((warehouse, index) => (
               <div key={warehouse.id + index} className="flex items-center gap-2">
-                <div className="relative w-20">
+                <div className="relative w-24">
                   <Input
                     type="text"
                     value={warehouse.id}
-                    onChange={(e) => handleChange(index, 'id', e.target.value)}
-                    placeholder="번호"
-                    className="h-11 text-center rounded-lg"
+                    onChange={(e) => handleChange(index, 'id', e.target.value.toUpperCase())}
+                    placeholder="ID"
+                    className="h-11 text-center rounded-lg font-mono"
                     disabled={!warehouse.isNew}
+                    maxLength={10}
                   />
                 </div>
                 <div className="flex-1 relative">
