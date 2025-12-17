@@ -197,7 +197,7 @@ export default function WarehouseSettingsPage() {
         <CardContent className="p-5">
           <div className="space-y-3">
             {warehouses.map((warehouse, index) => (
-              <div key={warehouse.id + index} className="flex items-center gap-2">
+              <div key={index} className="flex items-center gap-2">
                 <div className="relative w-24">
                   <Input
                     type="text"
