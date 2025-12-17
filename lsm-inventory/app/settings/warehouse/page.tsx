@@ -25,6 +25,7 @@ export default function WarehouseSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [duplicateIds, setDuplicateIds] = useState<Set<string>>(new Set())
 
   // 관리자 권한 확인
   useEffect(() => {
@@ -58,6 +59,11 @@ export default function WarehouseSettingsPage() {
     const updated = [...warehouses]
     updated[index] = { ...updated[index], [field]: value }
     setWarehouses(updated)
+    // ID 변경 시 중복 에러 초기화
+    if (field === 'id') {
+      setDuplicateIds(new Set())
+      setMessage(null)
+    }
   }
 
   const handleAdd = () => {
@@ -99,6 +105,27 @@ export default function WarehouseSettingsPage() {
   const handleSave = async () => {
     setSaving(true)
     setMessage(null)
+    setDuplicateIds(new Set())
+
+    // 중복 ID 검사
+    const idCounts = new Map<string, number>()
+    const duplicates = new Set<string>()
+
+    for (const w of warehouses) {
+      if (!w.id) continue
+      const count = (idCounts.get(w.id) || 0) + 1
+      idCounts.set(w.id, count)
+      if (count > 1) {
+        duplicates.add(w.id)
+      }
+    }
+
+    if (duplicates.size > 0) {
+      setDuplicateIds(duplicates)
+      setMessage({ type: 'error', text: `중복된 ID가 있습니다: ${Array.from(duplicates).join(', ')}` })
+      setSaving(false)
+      return
+    }
 
     try {
       // 새 항목 추가 및 기존 항목 수정
@@ -177,7 +204,11 @@ export default function WarehouseSettingsPage() {
                     value={warehouse.id}
                     onChange={(e) => handleChange(index, 'id', e.target.value.toUpperCase())}
                     placeholder="ID"
-                    className="h-11 text-center rounded-lg font-mono"
+                    className={`h-11 text-center rounded-lg font-mono ${
+                      duplicateIds.has(warehouse.id)
+                        ? 'border-red-500 border-2 focus:border-red-500 focus:ring-red-500'
+                        : ''
+                    }`}
                     disabled={!warehouse.isNew}
                     maxLength={10}
                   />
