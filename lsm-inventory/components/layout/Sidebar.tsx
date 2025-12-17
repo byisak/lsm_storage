@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { X, ChevronRight, User, LogOut, Shield, Warehouse, Undo2 } from 'lucide-react'
+import { X, ChevronRight, User, LogOut, Shield, Warehouse, Undo2, UserCog } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 
@@ -62,22 +62,37 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           {user ? (
             // 로그인 상태
             <div className="bg-zinc-800 dark:bg-zinc-900 rounded-2xl p-4">
-              <div className="flex items-center gap-3 mb-3">
+              <Link
+                href="/settings/profile"
+                onClick={onClose}
+                className="flex items-center gap-3 mb-3 group"
+              >
                 <div className="bg-orange-500 p-2 rounded-full">
                   <User className="w-5 h-5 text-white" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="text-white font-bold text-base">{user.name}</h3>
                   <p className="text-zinc-400 text-sm">{user.email}</p>
                 </div>
+                <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 group-hover:translate-x-1 transition-all" />
+              </Link>
+              <div className="flex gap-2">
+                <Link
+                  href="/settings/profile"
+                  onClick={onClose}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-xl text-zinc-300 text-sm transition-colors"
+                >
+                  <UserCog className="w-4 h-4" />
+                  내 정보
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-xl text-zinc-300 text-sm transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  로그아웃
+                </button>
               </div>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-xl text-zinc-300 text-sm transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                로그아웃
-              </button>
             </div>
           ) : (
             // 비로그인 상태
