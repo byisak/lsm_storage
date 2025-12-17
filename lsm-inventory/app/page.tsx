@@ -970,50 +970,52 @@ function HomeContent() {
 
         {/* 품목 검색 입력 */}
         {activeTab === 'item' && (
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
-            <Input
-              ref={inputRef}
-              type="text"
-              placeholder="품목코드 또는 품목명 입력"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
-                setSelectedIndex(-1)
-                setHasSearched(false)
-              }}
-              onKeyDown={handleKeyDown}
-              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              className="pl-12 pr-24 h-14 text-base rounded-2xl border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            />
-            <Button
-              onClick={() => handleSearch()}
-              disabled={loading}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 z-10"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
-            </Button>
-
-            {/* 품목 자동완성 드롭다운 */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div
-                ref={suggestionsRef}
-                className="absolute top-full left-0 right-0 mt-1 bg-popover rounded-xl shadow-lg border border-border overflow-hidden z-50"
+          <div>
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
+              <Input
+                ref={inputRef}
+                type="text"
+                placeholder="품목코드 또는 품목명 입력"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setSelectedIndex(-1)
+                  setHasSearched(false)
+                }}
+                onKeyDown={handleKeyDown}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                className="pl-12 pr-24 h-14 text-base rounded-2xl border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+              <Button
+                onClick={() => handleSearch()}
+                disabled={loading}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 z-10"
               >
-                {suggestions.map((item, index) => (
-                  <div
-                    key={item.itemCode}
-                    onClick={() => handleSelectSuggestion(item)}
-                    className={`px-4 py-3 cursor-pointer border-b border-border last:border-b-0 ${
-                      index === selectedIndex ? 'bg-accent' : 'hover:bg-muted'
-                    }`}
-                  >
-                    <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
-                    <p className="text-foreground text-sm mt-0.5">{item.itemName}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
+              </Button>
+
+              {/* 품목 자동완성 드롭다운 */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  ref={suggestionsRef}
+                  className="absolute top-full left-0 right-0 mt-1 bg-popover rounded-xl shadow-lg border border-border overflow-hidden z-50"
+                >
+                  {suggestions.map((item, index) => (
+                    <div
+                      key={item.itemCode}
+                      onClick={() => handleSelectSuggestion(item)}
+                      className={`px-4 py-3 cursor-pointer border-b border-border last:border-b-0 ${
+                        index === selectedIndex ? 'bg-accent' : 'hover:bg-muted'
+                      }`}
+                    >
+                      <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
+                      <p className="text-foreground text-sm mt-0.5">{item.itemName}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* 품목 최근 검색 기록 */}
             {!showSuggestions && !hasSearched && itemSearchHistory.length > 0 && (
@@ -1043,63 +1045,65 @@ function HomeContent() {
 
         {/* 랙 검색 입력 */}
         {activeTab === 'rack' && (
-          <div className="relative">
-            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
-            <Input
-              ref={locationInputRef}
-              type="text"
-              placeholder="A11 또는 A-01-01"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
-                setLocationSelectedIndex(-1)
-                setHasSearched(false)
-              }}
-              onKeyDown={handleRackKeyDown}
-              onFocus={() => locationSuggestions.length > 0 && setShowLocationSuggestions(true)}
-              className="pl-12 pr-24 h-14 text-base rounded-2xl border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            />
-            <Button
-              onClick={() => handleSearch()}
-              disabled={loading}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 z-10"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
-            </Button>
-
-            {/* 단축 입력 힌트 */}
-            {expandedHint && !showLocationSuggestions && (
-              <div className="absolute top-full left-0 right-0 mt-1 px-3 py-2 bg-accent text-accent-foreground text-sm rounded-lg border border-border">
-                → {expandedHint} 로 검색됩니다
-              </div>
-            )}
-
-            {/* 랙 위치 자동완성 드롭다운 */}
-            {showLocationSuggestions && locationSuggestions.length > 0 && (
-              <div
-                ref={locationSuggestionsRef}
-                className="absolute top-full left-0 right-0 mt-1 bg-popover rounded-xl shadow-lg border border-border overflow-hidden z-50"
+          <div>
+            <div className="relative">
+              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
+              <Input
+                ref={locationInputRef}
+                type="text"
+                placeholder="A11 또는 A-01-01"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setLocationSelectedIndex(-1)
+                  setHasSearched(false)
+                }}
+                onKeyDown={handleRackKeyDown}
+                onFocus={() => locationSuggestions.length > 0 && setShowLocationSuggestions(true)}
+                className="pl-12 pr-24 h-14 text-base rounded-2xl border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+              <Button
+                onClick={() => handleSearch()}
+                disabled={loading}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 z-10"
               >
-                {locationSuggestions.map((suggestion, index) => (
-                  <div
-                    key={`${suggestion.storage}-${suggestion.location}`}
-                    onClick={() => handleSelectLocationSuggestion(suggestion)}
-                    className={`px-4 py-3 cursor-pointer border-b border-border last:border-b-0 flex items-center justify-between ${
-                      index === locationSelectedIndex ? 'bg-accent' : 'hover:bg-muted'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-primary" />
-                      <span className="font-medium text-foreground">{suggestion.location}</span>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
+              </Button>
+
+              {/* 단축 입력 힌트 */}
+              {expandedHint && !showLocationSuggestions && (
+                <div className="absolute top-full left-0 right-0 mt-1 px-3 py-2 bg-accent text-accent-foreground text-sm rounded-lg border border-border">
+                  → {expandedHint} 로 검색됩니다
+                </div>
+              )}
+
+              {/* 랙 위치 자동완성 드롭다운 */}
+              {showLocationSuggestions && locationSuggestions.length > 0 && (
+                <div
+                  ref={locationSuggestionsRef}
+                  className="absolute top-full left-0 right-0 mt-1 bg-popover rounded-xl shadow-lg border border-border overflow-hidden z-50"
+                >
+                  {locationSuggestions.map((suggestion, index) => (
+                    <div
+                      key={`${suggestion.storage}-${suggestion.location}`}
+                      onClick={() => handleSelectLocationSuggestion(suggestion)}
+                      className={`px-4 py-3 cursor-pointer border-b border-border last:border-b-0 flex items-center justify-between ${
+                        index === locationSelectedIndex ? 'bg-accent' : 'hover:bg-muted'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground">{suggestion.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Warehouse className="w-3 h-3" />
+                        <span>{suggestion.storage}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Warehouse className="w-3 h-3" />
-                      <span>{suggestion.storage}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* 랙 최근 검색 기록 */}
             {!showLocationSuggestions && !expandedHint && !hasSearched && rackSearchHistory.length > 0 && (
