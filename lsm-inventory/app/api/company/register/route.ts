@@ -100,16 +100,17 @@ export async function POST(request: NextRequest) {
 
       // 관리자 사용자 생성 (바로 승인 상태)
       await connection.execute(
-        `INSERT INTO LS_USERS (NAME, EMAIL, PASSWORD, IS_ADMIN, IS_APPROVED, COMPANY_ID, CREATED_AT)
-         VALUES (:name, :email, :password, :isAdmin, :isApproved, :companyId, :createdAt)`,
+        `INSERT INTO LS_USERS (NAME, EMAIL, PASSWORD, ROLE, STATUS, COMPANY_ID, CREATED_AT, APPROVED_AT)
+         VALUES (:name, :email, :password, :role, :status, :companyId, :createdAt, :approvedAt)`,
         {
           name: adminName,
           email: adminEmail,
           password: hashedPassword,
-          isAdmin: 1,
-          isApproved: 1,
+          role: 'ADMIN',
+          status: 'APPROVED',
           companyId: companyCode,
           createdAt: now,
+          approvedAt: now,
         },
         { autoCommit: false }
       )
