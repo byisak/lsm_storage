@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { executeQuery, executeUpdate, LsUser } from '@/lib/oracle'
 import { requireAdmin, AuthError } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'
+import { checkUserLimit } from '@/lib/plan-limits'
 
 // 회원 목록 조회 (같은 회사 사용자만)
 export async function GET(request: NextRequest) {
@@ -82,6 +83,23 @@ export async function PUT(request: NextRequest) {
         { success: false, message: '올바르지 않은 상태값입니다.' },
         { status: 400 }
       )
+    }
+
+    // 승인 시 요금제 한도 확인
+    if (status === 'APPROVED') {
+      const limitCheck = await checkUserLimit()
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: limitCheck.message,
+            limitReached: true,
+            current: limitCheck.current,
+            limit: limitCheck.limit,
+          },
+          { status: 403 }
+        )
+      }
     }
 
     let rowsAffected: number

@@ -7,7 +7,7 @@ interface User {
   id: number
   name: string
   email: string
-  role: 'USER' | 'ADMIN'
+  role: 'USER' | 'ADMIN' | 'SUPER_ADMIN'
   companyId?: string
   companyName?: string
 }

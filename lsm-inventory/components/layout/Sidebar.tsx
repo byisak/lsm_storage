@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { X, ChevronRight, User, LogOut, Shield, Warehouse, Undo2, UserCog, Building2 } from 'lucide-react'
+import { X, ChevronRight, User, LogOut, Shield, Warehouse, Undo2, UserCog, Building2, Crown } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 
@@ -152,7 +152,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
 
             {/* 관리자 메뉴 */}
-            {user?.role === 'ADMIN' && (
+            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
               <>
                 <div className="border-t border-border my-3" />
                 <p className="px-3 py-1 text-xs text-muted-foreground font-medium">관리자</p>
@@ -179,6 +179,22 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 >
                   <Warehouse className="w-4 h-4 text-orange-500" />
                   <span className="text-foreground">창고 설정</span>
+                </Link>
+              </>
+            )}
+
+            {/* 슈퍼 관리자 메뉴 */}
+            {user?.role === 'SUPER_ADMIN' && (
+              <>
+                <div className="border-t border-border my-3" />
+                <p className="px-3 py-1 text-xs text-muted-foreground font-medium">슈퍼 관리자</p>
+                <Link
+                  href="/super-admin"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <Crown className="w-4 h-4 text-purple-500" />
+                  <span className="text-foreground">시스템 관리</span>
                 </Link>
               </>
             )}

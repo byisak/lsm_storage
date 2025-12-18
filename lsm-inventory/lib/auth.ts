@@ -14,13 +14,21 @@ import { DEFAULT_COMPANY_ID, isMultiTenantEnabled } from './multi-tenant'
 // ============================================================
 
 /**
+ * 사용자 역할
+ * - USER: 일반 사용자
+ * - ADMIN: 회사 관리자
+ * - SUPER_ADMIN: 슈퍼 관리자 (전체 시스템 관리)
+ */
+export type UserRole = 'USER' | 'ADMIN' | 'SUPER_ADMIN'
+
+/**
  * 기존 세션 구조 (하위 호환)
  */
 export interface LegacySession {
   id: number
   name: string
   email: string
-  role: 'USER' | 'ADMIN'
+  role: UserRole
 }
 
 /**
@@ -38,7 +46,7 @@ export interface UserInfo {
   id: number
   name: string
   email: string
-  role: 'USER' | 'ADMIN'
+  role: UserRole
   companyId?: string
   companyName?: string
 }
@@ -93,15 +101,37 @@ export async function requireAuth(): Promise<AuthSession> {
 
 /**
  * 관리자 권한이 필요한 API에서 사용하는 헬퍼
+ * ADMIN 또는 SUPER_ADMIN 모두 허용
  */
 export async function requireAdmin(): Promise<AuthSession> {
   const session = await requireAuth()
 
-  if (session.role !== 'ADMIN') {
+  if (session.role !== 'ADMIN' && session.role !== 'SUPER_ADMIN') {
     throw new AuthError('관리자 권한이 필요합니다.', 403)
   }
 
   return session
+}
+
+/**
+ * 슈퍼 관리자 권한이 필요한 API에서 사용하는 헬퍼
+ * SUPER_ADMIN만 허용
+ */
+export async function requireSuperAdmin(): Promise<AuthSession> {
+  const session = await requireAuth()
+
+  if (session.role !== 'SUPER_ADMIN') {
+    throw new AuthError('슈퍼 관리자 권한이 필요합니다.', 403)
+  }
+
+  return session
+}
+
+/**
+ * 슈퍼 관리자인지 확인
+ */
+export function isSuperAdmin(session: AuthSession | null): boolean {
+  return session?.role === 'SUPER_ADMIN'
 }
 
 // ============================================================
@@ -128,7 +158,7 @@ interface UserWithCompany {
   EMAIL: string
   PASSWORD: string
   STATUS: 'PENDING' | 'APPROVED' | 'REJECTED'
-  ROLE: 'USER' | 'ADMIN'
+  ROLE: UserRole
   CREATED_AT: Date
   APPROVED_AT: Date | null
   APPROVED_BY: number | null

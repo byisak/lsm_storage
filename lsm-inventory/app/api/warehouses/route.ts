@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { executeQuery, executeInsert, executeUpdate, executeDelete, LsWarehouse } from '@/lib/oracle'
 import { getSession, requireAdmin, AuthError } from '@/lib/auth'
 import { getCompanyId, isMultiTenantEnabled } from '@/lib/multi-tenant'
+import { checkWarehouseLimit } from '@/lib/plan-limits'
 
 // 창고 목록 조회
 export async function GET() {
@@ -68,6 +69,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, message: '창고 ID와 이름은 필수입니다.' },
         { status: 400 }
+      )
+    }
+
+    // 요금제 한도 확인
+    const limitCheck = await checkWarehouseLimit()
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: limitCheck.message,
+          limitReached: true,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+        },
+        { status: 403 }
       )
     }
 
