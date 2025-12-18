@@ -117,16 +117,14 @@ export async function POST(request: NextRequest) {
 
       // 기본 창고 생성
       await connection.execute(
-        `INSERT INTO LS_WAREHOUSES (ID, NAME, DESCRIPTION, STATUS, COMPANY_ID, CREATED_AT, UPDATED_AT)
-         VALUES (:id, :name, :description, :status, :companyId, :createdAt, :updatedAt)`,
+        `INSERT INTO LS_WAREHOUSES (ID, NAME, SORT_ORDER, COMPANY_ID, CREATED_AT)
+         VALUES (:id, :name, :sortOrder, :companyId, :createdAt)`,
         {
           id: `${companyCode}_WH1`,
           name: '기본 창고',
-          description: `${companyName} 기본 창고`,
-          status: 'ACTIVE',
+          sortOrder: 1,
           companyId: companyCode,
           createdAt: now,
-          updatedAt: now,
         },
         { autoCommit: false }
       )
