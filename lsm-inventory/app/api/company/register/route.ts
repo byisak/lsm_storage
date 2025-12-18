@@ -115,12 +115,13 @@ export async function POST(request: NextRequest) {
         { autoCommit: false }
       )
 
-      // 기본 창고 생성
+      // 기본 창고 생성 (ID는 회사코드 앞 4자 + 숫자로 최대 10자)
+      const warehouseId = `${companyCode.slice(0, 6)}W1`
       await connection.execute(
         `INSERT INTO LS_WAREHOUSES (ID, NAME, SORT_ORDER, COMPANY_ID, CREATED_AT)
          VALUES (:id, :name, :sortOrder, :companyId, :createdAt)`,
         {
-          id: `${companyCode}_WH1`,
+          id: warehouseId,
           name: '기본 창고',
           sortOrder: 1,
           companyId: companyCode,
