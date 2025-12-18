@@ -199,16 +199,19 @@ export interface LsWarehouse {
 export interface Company {
   ID: string
   NAME: string
-  BUSINESS_NUMBER: string | null
-  REPRESENTATIVE: string | null
-  PHONE: string | null
-  EMAIL: string | null
-  ADDRESS: string | null
-  LOGO_URL: string | null
+  BUSINESS_NUMBER?: string | null
+  REPRESENTATIVE?: string | null
+  PHONE?: string | null
+  EMAIL?: string | null
+  ADDRESS?: string | null
+  LOGO_URL?: string | null
+  THEME_COLOR?: string | null
+  CONTACT_EMAIL?: string | null
+  CONTACT_PHONE?: string | null
   STATUS: 'ACTIVE' | 'SUSPENDED' | 'DELETED'
   PLAN_TYPE: 'BASIC' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE'
-  MAX_USERS: number
-  MAX_WAREHOUSES: number
-  CREATED_AT: Date
-  UPDATED_AT: Date
+  MAX_USERS?: number
+  MAX_WAREHOUSES?: number
+  CREATED_AT?: Date
+  UPDATED_AT?: Date
 }
