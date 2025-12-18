@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { executeQuery, LsMotorRack } from '@/lib/oracle'
+import { getSession } from '@/lib/auth'
+import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 
 // 조회 결과를 camelCase로 변환하는 헬퍼 함수
 function formatItems(items: LsMotorRack[]) {
@@ -19,6 +21,14 @@ function formatItems(items: LsMotorRack[]) {
 // 형식: "1|A-01-01" (창고번호|위치)
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: '로그인이 필요합니다.' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.text()
 
     // "1|A-01-01" 형식 파싱
@@ -34,14 +44,27 @@ export async function POST(request: NextRequest) {
     const storageVal = storage.trim()
     const locationVal = location.trim()
 
-    // 해당 위치의 재고 조회
-    const items = await executeQuery<LsMotorRack>(
-      `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
-       FROM LS_MOTOR_RACK
-       WHERE STORAGE = :storage AND LOCATION = :location
-       ORDER BY IN_DAY DESC NULLS LAST`,
-      { storage: storageVal, location: locationVal }
-    )
+    let items: LsMotorRack[]
+
+    if (isMultiTenantEnabled()) {
+      // 멀티테넌트: 회사별 필터링
+      items = await executeQuery<LsMotorRack>(
+        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK, COMPANY_ID
+         FROM LS_MOTOR_RACK
+         WHERE STORAGE = :storage AND LOCATION = :location AND COMPANY_ID = :companyId
+         ORDER BY IN_DAY DESC NULLS LAST`,
+        { storage: storageVal, location: locationVal, companyId: session.companyId }
+      )
+    } else {
+      // 단일 테넌트: 기존 방식
+      items = await executeQuery<LsMotorRack>(
+        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+         FROM LS_MOTOR_RACK
+         WHERE STORAGE = :storage AND LOCATION = :location
+         ORDER BY IN_DAY DESC NULLS LAST`,
+        { storage: storageVal, location: locationVal }
+      )
+    }
 
     return NextResponse.json({
       success: true,
@@ -62,6 +85,14 @@ export async function POST(request: NextRequest) {
 // GET 요청도 지원 (URL 파라미터)
 export async function GET(request: NextRequest) {
   try {
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: '로그인이 필요합니다.' },
+        { status: 401 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q') // "1|A-01-01" 형식
     const storage = searchParams.get('storage')
@@ -87,13 +118,27 @@ export async function GET(request: NextRequest) {
     const storageVal = storageValue.trim()
     const locationVal = locationValue.trim()
 
-    const items = await executeQuery<LsMotorRack>(
-      `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
-       FROM LS_MOTOR_RACK
-       WHERE STORAGE = :storage AND LOCATION = :location
-       ORDER BY IN_DAY DESC NULLS LAST`,
-      { storage: storageVal, location: locationVal }
-    )
+    let items: LsMotorRack[]
+
+    if (isMultiTenantEnabled()) {
+      // 멀티테넌트: 회사별 필터링
+      items = await executeQuery<LsMotorRack>(
+        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK, COMPANY_ID
+         FROM LS_MOTOR_RACK
+         WHERE STORAGE = :storage AND LOCATION = :location AND COMPANY_ID = :companyId
+         ORDER BY IN_DAY DESC NULLS LAST`,
+        { storage: storageVal, location: locationVal, companyId: session.companyId }
+      )
+    } else {
+      // 단일 테넌트: 기존 방식
+      items = await executeQuery<LsMotorRack>(
+        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+         FROM LS_MOTOR_RACK
+         WHERE STORAGE = :storage AND LOCATION = :location
+         ORDER BY IN_DAY DESC NULLS LAST`,
+        { storage: storageVal, location: locationVal }
+      )
+    }
 
     return NextResponse.json({
       success: true,

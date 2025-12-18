@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, executeInsert, executeUpdate, executeDelete, withTransaction, LsMotorRack } from '@/lib/oracle'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/oracle'
 import oracledb from 'oracledb'
+import { getSession } from '@/lib/auth'
+import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 
 // 수정 내역 문자열 생성 함수
 function buildChangeDescription(
@@ -49,6 +51,14 @@ function buildChangeDescription(
 // 재고 수정
 export async function PUT(request: NextRequest) {
   try {
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: '로그인이 필요합니다.' },
+        { status: 401 }
+      )
+    }
+
     const data = await request.json()
     const { id, itemCode, itemName, nowQty, inDay, remark, user } = data
 
@@ -59,12 +69,22 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // 기존 재고 확인
-    const existingRows = await executeQuery<LsMotorRack>(
-      `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
-       FROM LS_MOTOR_RACK WHERE ID = :id`,
-      { id }
-    )
+    // 기존 재고 확인 (회사 소유권 검증 포함)
+    let existingRows: LsMotorRack[]
+
+    if (isMultiTenantEnabled()) {
+      existingRows = await executeQuery<LsMotorRack>(
+        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK, COMPANY_ID
+         FROM LS_MOTOR_RACK WHERE ID = :id AND COMPANY_ID = :companyId`,
+        { id, companyId: session.companyId }
+      )
+    } else {
+      existingRows = await executeQuery<LsMotorRack>(
+        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+         FROM LS_MOTOR_RACK WHERE ID = :id`,
+        { id }
+      )
+    }
 
     if (existingRows.length === 0) {
       return NextResponse.json(

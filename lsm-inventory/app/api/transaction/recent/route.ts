@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { executeQuery } from '@/lib/oracle'
+import { getSession } from '@/lib/auth'
+import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 
 interface RecentLocation {
   LOCATION: string
@@ -14,21 +16,50 @@ interface RecentItem {
 // 최근 입고 기록 조회 (위치, 품목코드)
 export async function GET() {
   try {
-    // 최근 입고 기록에서 위치 정보 가져오기
-    const recentLocations = await executeQuery<RecentLocation>(
-      `SELECT LOCATION, STORAGE FROM LS_MOTOR_SUBUL
-       WHERE CATEGORY = '입고'
-       ORDER BY SUBUL_TIME DESC
-       FETCH FIRST 50 ROWS ONLY`
-    )
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: '로그인이 필요합니다.' },
+        { status: 401 }
+      )
+    }
 
-    // 최근 입고 기록에서 품목 정보 가져오기
-    const recentItems = await executeQuery<RecentItem>(
-      `SELECT ITEM_CODE, ITEM_NAME FROM LS_MOTOR_SUBUL
-       WHERE CATEGORY = '입고'
-       ORDER BY SUBUL_TIME DESC
-       FETCH FIRST 50 ROWS ONLY`
-    )
+    let recentLocations: RecentLocation[]
+    let recentItems: RecentItem[]
+
+    if (isMultiTenantEnabled()) {
+      // 멀티테넌트: 회사별 필터링
+      recentLocations = await executeQuery<RecentLocation>(
+        `SELECT LOCATION, STORAGE FROM LS_MOTOR_SUBUL
+         WHERE CATEGORY = '입고' AND COMPANY_ID = :companyId
+         ORDER BY SUBUL_TIME DESC
+         FETCH FIRST 50 ROWS ONLY`,
+        { companyId: session.companyId }
+      )
+
+      recentItems = await executeQuery<RecentItem>(
+        `SELECT ITEM_CODE, ITEM_NAME FROM LS_MOTOR_SUBUL
+         WHERE CATEGORY = '입고' AND COMPANY_ID = :companyId
+         ORDER BY SUBUL_TIME DESC
+         FETCH FIRST 50 ROWS ONLY`,
+        { companyId: session.companyId }
+      )
+    } else {
+      // 단일 테넌트: 기존 방식
+      recentLocations = await executeQuery<RecentLocation>(
+        `SELECT LOCATION, STORAGE FROM LS_MOTOR_SUBUL
+         WHERE CATEGORY = '입고'
+         ORDER BY SUBUL_TIME DESC
+         FETCH FIRST 50 ROWS ONLY`
+      )
+
+      recentItems = await executeQuery<RecentItem>(
+        `SELECT ITEM_CODE, ITEM_NAME FROM LS_MOTOR_SUBUL
+         WHERE CATEGORY = '입고'
+         ORDER BY SUBUL_TIME DESC
+         FETCH FIRST 50 ROWS ONLY`
+      )
+    }
 
     // 위치 중복 제거 (location + storage 조합)
     const uniqueLocations = Array.from(
