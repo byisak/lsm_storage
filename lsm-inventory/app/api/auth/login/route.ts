@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { executeQuery, LsUser } from '@/lib/oracle'
+import { findUserByEmail, createSessionData, toUserInfo } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,22 +15,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 사용자 조회
-    const users = await executeQuery<LsUser>(
-      `SELECT ID, NAME, EMAIL, PASSWORD, STATUS, ROLE, CREATED_AT
-       FROM LS_USERS
-       WHERE EMAIL = :email`,
-      { email: email.toLowerCase() }
-    )
+    // 사용자 조회 (멀티테넌트 지원)
+    const user = await findUserByEmail(email)
 
-    if (users.length === 0) {
+    if (!user) {
       return NextResponse.json(
         { success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다.' },
         { status: 401 }
       )
     }
-
-    const user = users[0]
 
     // 비밀번호 검증
     const isValidPassword = await bcrypt.compare(password, user.PASSWORD)
@@ -56,19 +49,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 세션 데이터 (쿠키에 저장)
-    const sessionData = {
-      id: user.ID,
-      name: user.NAME,
-      email: user.EMAIL,
-      role: user.ROLE,
-    }
+    // 세션 데이터 생성 (회사 정보 포함)
+    const sessionData = createSessionData(user)
+
+    // 응답용 사용자 정보 (멀티테넌트 모드에 따라 회사 정보 포함 여부 결정)
+    const userInfo = toUserInfo(sessionData)
 
     // 응답 생성
     const response = NextResponse.json({
       success: true,
       message: '로그인 성공',
-      user: sessionData,
+      user: userInfo,
     })
 
     // 세션 쿠키 설정 (7일)
