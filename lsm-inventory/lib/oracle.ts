@@ -57,11 +57,11 @@ export async function executeQuery<T>(
 
 export async function executeInsert(
   sql: string,
-  binds: oracledb.BindParameters = {}
+  binds: Record<string, unknown> | oracledb.BindParameters = {}
 ): Promise<{ rowsAffected: number; lastRowid?: string }> {
   const connection = await getConnection()
   try {
-    const result = await connection.execute(sql, binds, {
+    const result = await connection.execute(sql, binds as oracledb.BindParameters, {
       autoCommit: true,
     })
     return {
@@ -75,11 +75,11 @@ export async function executeInsert(
 
 export async function executeUpdate(
   sql: string,
-  binds: oracledb.BindParameters = {}
+  binds: Record<string, unknown> | oracledb.BindParameters = {}
 ): Promise<number> {
   const connection = await getConnection()
   try {
-    const result = await connection.execute(sql, binds, {
+    const result = await connection.execute(sql, binds as oracledb.BindParameters, {
       autoCommit: true,
     })
     return result.rowsAffected || 0
@@ -90,11 +90,11 @@ export async function executeUpdate(
 
 export async function executeDelete(
   sql: string,
-  binds: oracledb.BindParameters = {}
+  binds: Record<string, unknown> | oracledb.BindParameters = {}
 ): Promise<number> {
   const connection = await getConnection()
   try {
-    const result = await connection.execute(sql, binds, {
+    const result = await connection.execute(sql, binds as oracledb.BindParameters, {
       autoCommit: true,
     })
     return result.rowsAffected || 0
