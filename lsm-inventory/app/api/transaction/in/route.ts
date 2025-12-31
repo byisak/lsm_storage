@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, withTransaction, LsMotorRack } from '@/lib/oracle'
-import oracledb from 'oracledb'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/postgres'
 import { getSession } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 
@@ -149,15 +148,13 @@ export async function POST(request: NextRequest) {
       )
 
       // 방금 입고된 재고 조회
-      const newRack = await connection.execute<LsMotorRack>(
+      const rows = await connection.query<LsMotorRack>(
         `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
          FROM LS_MOTOR_RACK
          WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
-        { storage, location, itemCode },
-        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        { storage, location, itemCode }
       )
 
-      const rows = newRack.rows as LsMotorRack[]
       return rows[0]
     })
 

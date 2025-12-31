@@ -4,7 +4,7 @@
  * 시스템의 중요 활동을 추적하고 기록합니다.
  */
 
-import { executeQuery, executeInsert } from './oracle'
+import { executeQuery, executeInsert } from './postgres'
 import { getCompanyId, isMultiTenantEnabled, getTenantSession } from './multi-tenant'
 import { checkFeature } from './plan-limits'
 import { headers } from 'next/headers'
@@ -123,30 +123,18 @@ export async function logAudit(data: AuditLogData): Promise<void> {
     const userName = data.userName || session?.name || ''
     const userEmail = data.userEmail || session?.email || ''
 
-    // 시퀀스에서 새 ID 가져오기
-    const seqResult = await executeQuery<{ NEXT_ID: number }>(
-      `SELECT AUDIT_LOG_SEQ.NEXTVAL AS NEXT_ID FROM DUAL`
-    )
-    const nextId = seqResult[0]?.NEXT_ID
-
-    if (!nextId) {
-      console.error('Failed to get audit log sequence')
-      return
-    }
-
-    // 감사 로그 저장
+    // 감사 로그 저장 (PostgreSQL SERIAL 사용)
     await executeInsert(
-      `INSERT INTO AUDIT_LOG (
-        ID, COMPANY_ID, USER_ID, USER_NAME, USER_EMAIL,
-        ACTION, RESOURCE_TYPE, RESOURCE_ID, DESCRIPTION,
-        IP_ADDRESS, USER_AGENT, OLD_VALUES, NEW_VALUES
+      `INSERT INTO audit_log (
+        company_id, user_id, user_name, user_email,
+        action, resource_type, resource_id, description,
+        ip_address, user_agent, old_values, new_values
       ) VALUES (
-        :id, :companyId, :userId, :userName, :userEmail,
+        :companyId, :userId, :userName, :userEmail,
         :action, :resourceType, :resourceId, :description,
         :ipAddress, :userAgent, :oldValues, :newValues
       )`,
       {
-        id: nextId,
         companyId,
         userId: userId || null,
         userName,
@@ -366,28 +354,23 @@ export async function getAuditLogs(filter: AuditLogFilter = {}): Promise<{
 
   // 총 개수 조회
   const countResult = await executeQuery<{ CNT: number }>(
-    `SELECT COUNT(*) AS CNT FROM AUDIT_LOG ${whereClause}`,
+    `SELECT COUNT(*) AS cnt FROM audit_log ${whereClause}`,
     binds
   )
   const total = countResult[0]?.CNT || 0
 
-  // 로그 조회 (페이징)
-  const limit = filter.limit || 50
-  const offset = filter.offset || 0
+  // 로그 조회 (페이징 - PostgreSQL)
+  const limitVal = filter.limit || 50
+  const offsetVal = filter.offset || 0
 
   const rows = await executeQuery<AuditLogRow>(
-    `SELECT * FROM (
-      SELECT a.*, ROWNUM AS rn FROM (
-        SELECT * FROM AUDIT_LOG ${whereClause}
-        ORDER BY CREATED_AT DESC
-      ) a
-      WHERE ROWNUM <= :endRow
-    )
-    WHERE rn > :startRow`,
+    `SELECT * FROM audit_log ${whereClause}
+     ORDER BY created_at DESC
+     LIMIT :limitVal OFFSET :offsetVal`,
     {
       ...binds,
-      startRow: offset,
-      endRow: offset + limit,
+      limitVal,
+      offsetVal,
     }
   )
 
@@ -466,28 +449,23 @@ export async function getAllAuditLogs(filter: Omit<AuditLogFilter, 'companyId'> 
 
   // 총 개수 조회
   const countResult = await executeQuery<{ CNT: number }>(
-    `SELECT COUNT(*) AS CNT FROM AUDIT_LOG ${whereClause}`,
+    `SELECT COUNT(*) AS cnt FROM audit_log ${whereClause}`,
     binds
   )
   const total = countResult[0]?.CNT || 0
 
-  // 로그 조회 (페이징)
-  const limit = filter.limit || 50
-  const offset = filter.offset || 0
+  // 로그 조회 (페이징 - PostgreSQL)
+  const limitVal = filter.limit || 50
+  const offsetVal = filter.offset || 0
 
   const rows = await executeQuery<AuditLogRow>(
-    `SELECT * FROM (
-      SELECT a.*, ROWNUM AS rn FROM (
-        SELECT * FROM AUDIT_LOG ${whereClause}
-        ORDER BY CREATED_AT DESC
-      ) a
-      WHERE ROWNUM <= :endRow
-    )
-    WHERE rn > :startRow`,
+    `SELECT * FROM audit_log ${whereClause}
+     ORDER BY created_at DESC
+     LIMIT :limitVal OFFSET :offsetVal`,
     {
       ...binds,
-      startRow: offset,
-      endRow: offset + limit,
+      limitVal,
+      offsetVal,
     }
   )
 

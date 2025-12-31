@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin, AuthError } from '@/lib/auth'
-import { executeQuery } from '@/lib/oracle'
+import { executeQuery } from '@/lib/postgres'
 import { getCompanyId, isMultiTenantEnabled } from '@/lib/multi-tenant'
 import { getCompanyPlan, checkUserLimit, checkWarehouseLimit, checkRackLimit } from '@/lib/plan-limits'
 
@@ -68,7 +68,7 @@ export async function GET() {
     const itemCount = await executeQuery<CountRow>(rackQuery, rackBinds)
 
     // 총 재고 수량
-    let totalQtyQuery = `SELECT NVL(SUM(QTY), 0) AS CNT FROM LS_MOTOR_RACK`
+    let totalQtyQuery = `SELECT COALESCE(SUM(QTY), 0) AS CNT FROM LS_MOTOR_RACK`
     const totalQtyBinds: Record<string, unknown> = {}
     if (isMultiTenantEnabled()) {
       totalQtyQuery += ` WHERE COMPANY_ID = :companyId`
@@ -76,43 +76,42 @@ export async function GET() {
     }
     const totalQty = await executeQuery<CountRow>(totalQtyQuery, totalQtyBinds)
 
-    // 오늘 거래 건수
+    // 오늘 거래 건수 (PostgreSQL)
     let todayTransQuery = `
-      SELECT COUNT(*) AS CNT FROM LS_MOTOR_SUBUL
-      WHERE TRUNC(SUBUL_TIME) = TRUNC(SYSDATE)
+      SELECT COUNT(*) AS CNT FROM ls_motor_subul
+      WHERE subul_time::DATE = CURRENT_DATE
     `
     const todayTransBinds: Record<string, unknown> = {}
     if (isMultiTenantEnabled()) {
-      todayTransQuery += ` AND COMPANY_ID = :companyId`
+      todayTransQuery += ` AND company_id = :companyId`
       todayTransBinds.companyId = companyId
     }
     const todayTrans = await executeQuery<CountRow>(todayTransQuery, todayTransBinds)
 
-    // 이번 달 거래 건수
+    // 이번 달 거래 건수 (PostgreSQL)
     let monthTransQuery = `
-      SELECT COUNT(*) AS CNT FROM LS_MOTOR_SUBUL
-      WHERE TRUNC(SUBUL_TIME, 'MM') = TRUNC(SYSDATE, 'MM')
+      SELECT COUNT(*) AS CNT FROM ls_motor_subul
+      WHERE DATE_TRUNC('month', subul_time) = DATE_TRUNC('month', NOW())
     `
     const monthTransBinds: Record<string, unknown> = {}
     if (isMultiTenantEnabled()) {
-      monthTransQuery += ` AND COMPANY_ID = :companyId`
+      monthTransQuery += ` AND company_id = :companyId`
       monthTransBinds.companyId = companyId
     }
     const monthTrans = await executeQuery<CountRow>(monthTransQuery, monthTransBinds)
 
-    // 최근 활동 (5건)
+    // 최근 활동 (5건 - PostgreSQL)
     let recentQuery = `
-      SELECT * FROM (
-        SELECT s.SUBUL_TIME, s.SUBUL_TYPE, s.ITEM_NAME, s.QTY, u.NAME AS USER_NAME
-        FROM LS_MOTOR_SUBUL s
-        LEFT JOIN LS_USERS u ON s.USER_ID = u.ID
+      SELECT s.subul_time, s.subul_type, s.item_name, s.qty, u.name AS user_name
+      FROM ls_motor_subul s
+      LEFT JOIN ls_users u ON s.user_id = u.id
     `
     const recentBinds: Record<string, unknown> = {}
     if (isMultiTenantEnabled()) {
-      recentQuery += ` WHERE s.COMPANY_ID = :companyId`
+      recentQuery += ` WHERE s.company_id = :companyId`
       recentBinds.companyId = companyId
     }
-    recentQuery += ` ORDER BY s.SUBUL_TIME DESC ) WHERE ROWNUM <= 5`
+    recentQuery += ` ORDER BY s.subul_time DESC LIMIT 5`
     const recentActivity = await executeQuery<RecentActivityRow>(recentQuery, recentBinds)
 
     return NextResponse.json({

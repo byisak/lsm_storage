@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, LsMotorSubul } from '@/lib/oracle'
+import { executeQuery, LsMotorSubul } from '@/lib/postgres'
 import { getSession } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 

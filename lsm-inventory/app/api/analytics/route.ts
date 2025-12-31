@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, AuthError } from '@/lib/auth'
-import { executeQuery } from '@/lib/oracle'
+import { executeQuery } from '@/lib/postgres'
 import { getCompanyId, isMultiTenantEnabled } from '@/lib/multi-tenant'
 import { checkFeature } from '@/lib/plan-limits'
 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN QTY ELSE 0 END) AS IN_QTY,
         SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN QTY ELSE 0 END) AS OUT_QTY
       FROM LS_MOTOR_SUBUL
-      WHERE SUBUL_TIME >= SYSDATE - :days
+      WHERE SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
     `
 
     const dailyBinds: Record<string, unknown> = { days }
@@ -93,15 +93,14 @@ export async function GET(request: NextRequest) {
 
     // 인기 품목 (입출고 빈도순)
     let topItemsQuery = `
-      SELECT * FROM (
-        SELECT
-          ITEM_CODE,
-          MAX(ITEM_NAME) AS ITEM_NAME,
-          SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN QTY ELSE 0 END) AS IN_QTY,
-          SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN QTY ELSE 0 END) AS OUT_QTY,
-          SUM(QTY) AS TOTAL_QTY
-        FROM LS_MOTOR_SUBUL
-        WHERE SUBUL_TIME >= SYSDATE - :days
+      SELECT
+        ITEM_CODE,
+        MAX(ITEM_NAME) AS ITEM_NAME,
+        SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN QTY ELSE 0 END) AS IN_QTY,
+        SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN QTY ELSE 0 END) AS OUT_QTY,
+        SUM(QTY) AS TOTAL_QTY
+      FROM LS_MOTOR_SUBUL
+      WHERE SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
     `
 
     const topItemsBinds: Record<string, unknown> = { days }
@@ -117,9 +116,9 @@ export async function GET(request: NextRequest) {
     }
 
     topItemsQuery += `
-        GROUP BY ITEM_CODE
-        ORDER BY TOTAL_QTY DESC
-      ) WHERE ROWNUM <= 10
+      GROUP BY ITEM_CODE
+      ORDER BY TOTAL_QTY DESC
+      LIMIT 10
     `
 
     const topItems = await executeQuery<TopItemRow>(topItemsQuery, topItemsBinds)
@@ -156,15 +155,14 @@ export async function GET(request: NextRequest) {
 
     // 사용자 활동 통계
     let activityQuery = `
-      SELECT * FROM (
-        SELECT
-          s.USER_ID,
-          u.NAME AS USER_NAME,
-          COUNT(*) AS TRANS_COUNT,
-          MAX(s.SUBUL_TIME) AS LAST_ACTIVITY
-        FROM LS_MOTOR_SUBUL s
-        LEFT JOIN LS_USERS u ON s.USER_ID = u.ID
-        WHERE s.SUBUL_TIME >= SYSDATE - :days
+      SELECT
+        s.USER_ID,
+        u.NAME AS USER_NAME,
+        COUNT(*) AS TRANS_COUNT,
+        MAX(s.SUBUL_TIME) AS LAST_ACTIVITY
+      FROM LS_MOTOR_SUBUL s
+      LEFT JOIN LS_USERS u ON s.USER_ID = u.ID
+      WHERE s.SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
     `
 
     const activityBinds: Record<string, unknown> = { days }
@@ -175,9 +173,9 @@ export async function GET(request: NextRequest) {
     }
 
     activityQuery += `
-        GROUP BY s.USER_ID, u.NAME
-        ORDER BY TRANS_COUNT DESC
-      ) WHERE ROWNUM <= 10
+      GROUP BY s.USER_ID, u.NAME
+      ORDER BY TRANS_COUNT DESC
+      LIMIT 10
     `
 
     const userActivity = await executeQuery<ActivityRow>(activityQuery, activityBinds)
@@ -194,7 +192,7 @@ export async function GET(request: NextRequest) {
         COUNT(DISTINCT ITEM_CODE) AS UNIQUE_ITEMS,
         COUNT(DISTINCT USER_ID) AS ACTIVE_USERS
       FROM LS_MOTOR_SUBUL
-      WHERE SUBUL_TIME >= SYSDATE - :days
+      WHERE SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
     `
 
     const summaryBinds: Record<string, unknown> = { days }

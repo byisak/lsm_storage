@@ -8,7 +8,7 @@
  */
 
 import { cookies } from 'next/headers'
-import { executeQuery } from './oracle'
+import { executeQuery } from './postgres'
 
 // ============================================================
 // 설정

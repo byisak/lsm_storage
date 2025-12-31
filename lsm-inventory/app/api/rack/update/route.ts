@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, withTransaction, LsMotorRack } from '@/lib/oracle'
-import oracledb from 'oracledb'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/postgres'
 import { getSession } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 
@@ -190,8 +189,7 @@ export async function PUT(request: NextRequest) {
       if (updateFields.length > 0) {
         await connection.execute(
           `UPDATE LS_MOTOR_RACK SET ${updateFields.join(', ')} WHERE ID = :id`,
-          updateBinds as oracledb.BindParameters,
-          { autoCommit: false }
+          updateBinds
         )
       }
 
@@ -220,14 +218,12 @@ export async function PUT(request: NextRequest) {
       }
 
       // 업데이트된 데이터 조회
-      const result = await connection.execute<LsMotorRack>(
+      const rows = await connection.query<LsMotorRack>(
         `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
          FROM LS_MOTOR_RACK WHERE ID = :id`,
-        { id },
-        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        { id }
       )
 
-      const rows = result.rows as LsMotorRack[]
       return rows[0]
     })
 

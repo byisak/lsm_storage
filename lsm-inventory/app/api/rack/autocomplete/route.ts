@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery } from '@/lib/oracle'
+import { executeQuery } from '@/lib/postgres'
 import { expandLocation } from '@/lib/location-utils'
 import { getSession } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'

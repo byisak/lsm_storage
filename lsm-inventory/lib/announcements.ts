@@ -4,7 +4,7 @@
  * 슈퍼 관리자가 전체 또는 특정 회사에 공지사항을 발송합니다.
  */
 
-import { executeQuery, executeInsert, executeUpdate, executeDelete } from './oracle'
+import { executeQuery, executeInsert, executeUpdate, executeDelete } from './postgres'
 import { getCompanyId, isMultiTenantEnabled, getTenantSession } from './multi-tenant'
 import { getCompanyPlan } from './plan-limits'
 
@@ -77,26 +77,16 @@ export async function createAnnouncement(
     throw new Error('인증이 필요합니다.')
   }
 
-  // 시퀀스에서 새 ID 가져오기
-  const seqResult = await executeQuery<{ NEXT_ID: number }>(
-    `SELECT ANNOUNCEMENTS_SEQ.NEXTVAL AS NEXT_ID FROM DUAL`
-  )
-  const nextId = seqResult[0]?.NEXT_ID
-
-  if (!nextId) {
-    throw new Error('공지사항 ID 생성 실패')
-  }
-
-  await executeInsert(
-    `INSERT INTO ANNOUNCEMENTS (
-      ID, TITLE, CONTENT, TYPE, TARGET, TARGET_COMPANY_ID,
-      PRIORITY, START_DATE, END_DATE, STATUS, CREATED_BY
+  // PostgreSQL: INSERT with RETURNING
+  const insertResult = await executeQuery<{ ID: number }>(
+    `INSERT INTO announcements (
+      title, content, type, target, target_company_id,
+      priority, start_date, end_date, status, created_by
     ) VALUES (
-      :id, :title, :content, :type, :target, :targetCompanyId,
+      :title, :content, :type, :target, :targetCompanyId,
       :priority, :startDate, :endDate, :status, :createdBy
-    )`,
+    ) RETURNING id`,
     {
-      id: nextId,
       title: input.title,
       content: input.content,
       type: input.type || 'INFO',
@@ -109,6 +99,11 @@ export async function createAnnouncement(
       createdBy: session.userId,
     }
   )
+  const nextId = insertResult[0]?.ID
+
+  if (!nextId) {
+    throw new Error('공지사항 생성 실패')
+  }
 
   return {
     id: nextId,
@@ -217,28 +212,23 @@ export async function getAllAnnouncements(options: {
 
   // 총 개수
   const countResult = await executeQuery<{ CNT: number }>(
-    `SELECT COUNT(*) AS CNT FROM ANNOUNCEMENTS ${whereClause}`,
+    `SELECT COUNT(*) AS cnt FROM announcements ${whereClause}`,
     binds
   )
   const total = countResult[0]?.CNT || 0
 
-  // 공지 조회 (페이징)
-  const limit = options.limit || 50
-  const offset = options.offset || 0
+  // 공지 조회 (페이징 - PostgreSQL)
+  const limitVal = options.limit || 50
+  const offsetVal = options.offset || 0
 
   const rows = await executeQuery<AnnouncementRow>(
-    `SELECT * FROM (
-      SELECT a.*, ROWNUM AS rn FROM (
-        SELECT * FROM ANNOUNCEMENTS ${whereClause}
-        ORDER BY PRIORITY DESC, CREATED_AT DESC
-      ) a
-      WHERE ROWNUM <= :endRow
-    )
-    WHERE rn > :startRow`,
+    `SELECT * FROM announcements ${whereClause}
+     ORDER BY priority DESC, created_at DESC
+     LIMIT :limitVal OFFSET :offsetVal`,
     {
       ...binds,
-      startRow: offset,
-      endRow: offset + limit,
+      limitVal,
+      offsetVal,
     }
   )
 

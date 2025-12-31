@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, LsMotorItem } from '@/lib/oracle'
+import { executeQuery, LsMotorItem } from '@/lib/postgres'
 import { matchChosung } from '@/lib/korean-utils'
 import { getSession } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, executeInsert, executeUpdate, executeDelete, LsWarehouse } from '@/lib/oracle'
+import { executeQuery, executeInsert, executeUpdate, executeDelete, LsWarehouse } from '@/lib/postgres'
 import { getSession, requireAdmin, AuthError } from '@/lib/auth'
 import { getCompanyId, isMultiTenantEnabled } from '@/lib/multi-tenant'
 import { checkWarehouseLimit } from '@/lib/plan-limits'
@@ -114,14 +114,14 @@ export async function POST(request: NextRequest) {
 
     if (isMultiTenantEnabled()) {
       maxOrder = await executeQuery<{ MAX_ORDER: number }>(
-        `SELECT NVL(MAX(SORT_ORDER), 0) + 1 AS MAX_ORDER
+        `SELECT COALESCE(MAX(SORT_ORDER), 0) + 1 AS MAX_ORDER
          FROM LS_WAREHOUSES
          WHERE COMPANY_ID = :companyId`,
         { companyId }
       )
     } else {
       maxOrder = await executeQuery<{ MAX_ORDER: number }>(
-        `SELECT NVL(MAX(SORT_ORDER), 0) + 1 AS MAX_ORDER FROM LS_WAREHOUSES`
+        `SELECT COALESCE(MAX(SORT_ORDER), 0) + 1 AS MAX_ORDER FROM LS_WAREHOUSES`
       )
     }
 

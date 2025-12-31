@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, withTransaction, LsMotorRack } from '@/lib/oracle'
-import oracledb from 'oracledb'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/postgres'
 
 interface SubulRecord {
   ID: number
@@ -125,13 +124,11 @@ export async function POST(request: NextRequest) {
 async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user: string) {
   await withTransaction(async (connection) => {
     // 현재 해당 위치에 품목이 있는지 확인
-    const existingResult = await connection.execute<LsMotorRack>(
+    const existingRows = await connection.query<LsMotorRack>(
       `SELECT ID, NOW_QTY FROM LS_MOTOR_RACK
        WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
-      { storage: subul.STORAGE, location: subul.LOCATION, itemCode: subul.ITEM_CODE },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      { storage: subul.STORAGE, location: subul.LOCATION, itemCode: subul.ITEM_CODE }
     )
-    const existingRows = existingResult.rows as LsMotorRack[]
 
     if (existingRows.length > 0) {
       // 기존 품목이 있으면 수량 추가
@@ -196,13 +193,11 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
     }
 
     // 1. 목적지에서 수량 차감
-    const targetResult = await connection.execute<LsMotorRack>(
+    const targetRows = await connection.query<LsMotorRack>(
       `SELECT ID, NOW_QTY FROM LS_MOTOR_RACK
        WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
-      { storage: toStorage, location: toLocation, itemCode: subul.ITEM_CODE },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      { storage: toStorage, location: toLocation, itemCode: subul.ITEM_CODE }
     )
-    const targetRows = targetResult.rows as LsMotorRack[]
 
     if (targetRows.length > 0) {
       const targetRack = targetRows[0]
@@ -226,13 +221,11 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
     }
 
     // 2. 출발지에 수량 복원
-    const sourceResult = await connection.execute<LsMotorRack>(
+    const sourceRows = await connection.query<LsMotorRack>(
       `SELECT ID, NOW_QTY FROM LS_MOTOR_RACK
        WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
-      { storage: subul.STORAGE, location: subul.LOCATION, itemCode: subul.ITEM_CODE },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      { storage: subul.STORAGE, location: subul.LOCATION, itemCode: subul.ITEM_CODE }
     )
-    const sourceRows = sourceResult.rows as LsMotorRack[]
 
     if (sourceRows.length > 0) {
       // 출발지에 품목이 있으면 수량 추가

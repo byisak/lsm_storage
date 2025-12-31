@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { executeQuery, executeInsert, LsUser } from '@/lib/oracle'
+import { executeQuery, executeInsert, LsUser } from '@/lib/postgres'
 import { isMultiTenantEnabled, DEFAULT_COMPANY_ID } from '@/lib/multi-tenant'
 
 export async function POST(request: NextRequest) {

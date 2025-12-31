@@ -4,7 +4,7 @@
  * CSV 파일에서 재고 데이터, 품목 마스터 등을 가져오기
  */
 
-import { executeQuery, executeInsert, executeUpdate, getConnection } from './oracle'
+import { executeQuery, executeInsert, executeUpdate, getConnection } from './postgres'
 import { getCompanyId, isMultiTenantEnabled } from './multi-tenant'
 import { checkFeature, checkRackLimit } from './plan-limits'
 import { logCreate } from './audit-log'
@@ -402,7 +402,7 @@ export async function importInventory(
 
       // 새 재고 추가
       const seqResult = await executeQuery<{ NEXT_SEQ: number }>(
-        `SELECT NVL(MAX(SEQ), 0) + 1 AS NEXT_SEQ FROM LS_MOTOR_RACK`
+        `SELECT COALESCE(MAX(SEQ), 0) + 1 AS NEXT_SEQ FROM LS_MOTOR_RACK`
       )
       const nextSeq = seqResult[0]?.NEXT_SEQ || 1
 

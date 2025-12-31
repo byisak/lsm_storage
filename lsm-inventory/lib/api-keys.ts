@@ -4,7 +4,7 @@
  * 외부 시스템에서 API에 접근할 수 있는 키를 관리합니다.
  */
 
-import { executeQuery, executeInsert, executeUpdate, executeDelete } from './oracle'
+import { executeQuery, executeInsert, executeUpdate, executeDelete } from './postgres'
 import { getCompanyId, isMultiTenantEnabled, getTenantSession } from './multi-tenant'
 import { checkFeature } from './plan-limits'
 import { createHash, randomBytes } from 'crypto'
@@ -79,16 +79,6 @@ export async function createApiKey(options: {
   // 키 해시 저장 (SHA-256)
   const keyHash = createHash('sha256').update(rawKey).digest('hex')
 
-  // 시퀀스에서 새 ID 가져오기
-  const seqResult = await executeQuery<{ NEXT_ID: number }>(
-    `SELECT API_KEYS_SEQ.NEXTVAL AS NEXT_ID FROM DUAL`
-  )
-  const nextId = seqResult[0]?.NEXT_ID
-
-  if (!nextId) {
-    throw new Error('API 키 ID 생성 실패')
-  }
-
   // 만료일 계산
   let expiresAt: Date | null = null
   if (options.expiresInDays) {
@@ -100,12 +90,12 @@ export async function createApiKey(options: {
   const permissions = options.permissions || ['READ']
   const permissionsStr = permissions.join(',')
 
-  // DB에 저장
-  await executeInsert(
-    `INSERT INTO API_KEYS (ID, COMPANY_ID, NAME, KEY_PREFIX, KEY_HASH, PERMISSIONS, EXPIRES_AT, STATUS, CREATED_BY)
-     VALUES (:id, :companyId, :name, :keyPrefix, :keyHash, :permissions, :expiresAt, 'ACTIVE', :createdBy)`,
+  // DB에 저장 (PostgreSQL: RETURNING id 사용)
+  const insertResult = await executeQuery<{ ID: number }>(
+    `INSERT INTO api_keys (company_id, name, key_prefix, key_hash, permissions, expires_at, status, created_by)
+     VALUES (:companyId, :name, :keyPrefix, :keyHash, :permissions, :expiresAt, 'ACTIVE', :createdBy)
+     RETURNING id`,
     {
-      id: nextId,
       companyId,
       name: options.name,
       keyPrefix,
@@ -115,6 +105,11 @@ export async function createApiKey(options: {
       createdBy: session.userId,
     }
   )
+  const nextId = insertResult[0]?.ID
+
+  if (!nextId) {
+    throw new Error('API 키 생성 실패')
+  }
 
   // 전체 API 키 형식: lsm_{companyId}_{fullKey}
   const fullApiKey = `lsm_${companyId}_${rawKey}`
