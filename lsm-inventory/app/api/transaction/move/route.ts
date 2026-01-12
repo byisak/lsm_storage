@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, withTransaction, LsMotorRack } from '@/lib/oracle'
-import oracledb from 'oracledb'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/postgres'
 
 // 재고 이동 (A 위치 → B 위치)
 export async function POST(request: NextRequest) {
@@ -101,13 +100,11 @@ export async function POST(request: NextRequest) {
       }
 
       // 2. 목적지에 동일 품목이 있는지 확인
-      const targetResult = await connection.execute<LsMotorRack>(
+      const targetRows = await connection.query<LsMotorRack>(
         `SELECT ID, NOW_QTY FROM LS_MOTOR_RACK
          WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
-        { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode },
-        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
       )
-      const targetRows = targetResult.rows as LsMotorRack[]
       const existingTarget = targetRows.length > 0 ? targetRows[0] : null
 
       // 출발지 수량 변경 정보
@@ -150,12 +147,10 @@ export async function POST(request: NextRequest) {
       // 목적지 rack ID 조회 (신규 생성된 경우)
       let targetRackId = existingTarget ? existingTarget.ID : null
       if (!existingTarget) {
-        const newTargetResult = await connection.execute<{ ID: number }>(
+        const newTargetRows = await connection.query<{ ID: number }>(
           `SELECT ID FROM LS_MOTOR_RACK WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
-          { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode },
-          { outFormat: oracledb.OUT_FORMAT_OBJECT }
+          { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
         )
-        const newTargetRows = newTargetResult.rows as { ID: number }[]
         if (newTargetRows.length > 0) {
           targetRackId = newTargetRows[0].ID
         }

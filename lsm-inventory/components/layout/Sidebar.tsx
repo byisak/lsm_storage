@@ -1,7 +1,24 @@
 'use client'
 
 import { useEffect } from 'react'
-import { X, ChevronRight, User, LogOut, Shield, Warehouse, Undo2, UserCog } from 'lucide-react'
+import {
+  X,
+  ChevronRight,
+  User,
+  LogOut,
+  Shield,
+  Warehouse,
+  Undo2,
+  UserCog,
+  Building2,
+  Crown,
+  LayoutDashboard,
+  Key,
+  Database,
+  BarChart3,
+  ScrollText,
+  Megaphone,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 
@@ -152,10 +169,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
 
             {/* 관리자 메뉴 */}
-            {user?.role === 'ADMIN' && (
+            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
               <>
                 <div className="border-t border-border my-3" />
                 <p className="px-3 py-1 text-xs text-muted-foreground font-medium">관리자</p>
+                <Link
+                  href="/admin"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <LayoutDashboard className="w-4 h-4 text-orange-500" />
+                  <span className="text-foreground">관리자 홈</span>
+                </Link>
                 <Link
                   href="/admin/users"
                   onClick={onClose}
@@ -165,12 +190,92 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <span className="text-foreground">회원 관리</span>
                 </Link>
                 <Link
-                  href="/settings/warehouse"
+                  href="/admin/warehouses"
                   onClick={onClose}
                   className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
                 >
                   <Warehouse className="w-4 h-4 text-orange-500" />
                   <span className="text-foreground">창고 설정</span>
+                </Link>
+                <Link
+                  href="/admin/company"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <Building2 className="w-4 h-4 text-orange-500" />
+                  <span className="text-foreground">회사 설정</span>
+                </Link>
+                <Link
+                  href="/admin/api-keys"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <Key className="w-4 h-4 text-orange-500" />
+                  <span className="text-foreground">API 키 관리</span>
+                </Link>
+                <Link
+                  href="/admin/data"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <Database className="w-4 h-4 text-orange-500" />
+                  <span className="text-foreground">데이터 관리</span>
+                </Link>
+                <Link
+                  href="/admin/analytics"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <BarChart3 className="w-4 h-4 text-orange-500" />
+                  <span className="text-foreground">분석</span>
+                </Link>
+                <Link
+                  href="/admin/audit-log"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <ScrollText className="w-4 h-4 text-orange-500" />
+                  <span className="text-foreground">감사 로그</span>
+                </Link>
+              </>
+            )}
+
+            {/* 슈퍼 관리자 메뉴 */}
+            {user?.role === 'SUPER_ADMIN' && (
+              <>
+                <div className="border-t border-border my-3" />
+                <p className="px-3 py-1 text-xs text-muted-foreground font-medium">슈퍼 관리자</p>
+                <Link
+                  href="/super-admin"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <Crown className="w-4 h-4 text-purple-500" />
+                  <span className="text-foreground">시스템 대시보드</span>
+                </Link>
+                <Link
+                  href="/super-admin/companies"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <Building2 className="w-4 h-4 text-purple-500" />
+                  <span className="text-foreground">회사 관리</span>
+                </Link>
+                <Link
+                  href="/super-admin/announcements"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <Megaphone className="w-4 h-4 text-purple-500" />
+                  <span className="text-foreground">공지사항 관리</span>
+                </Link>
+                <Link
+                  href="/super-admin/audit-log"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <ScrollText className="w-4 h-4 text-purple-500" />
+                  <span className="text-foreground">시스템 로그</span>
                 </Link>
               </>
             )}

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, withTransaction, LsMotorRack } from '@/lib/oracle'
-import oracledb from 'oracledb'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/postgres'
 
 // 출고 처리
 export async function POST(request: NextRequest) {
@@ -71,13 +70,11 @@ export async function POST(request: NextRequest) {
           { autoCommit: false }
         )
 
-        const updated = await connection.execute<LsMotorRack>(
+        const rows = await connection.query<LsMotorRack>(
           `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
            FROM LS_MOTOR_RACK WHERE ID = :id`,
-          { id: rackId },
-          { outFormat: oracledb.OUT_FORMAT_OBJECT }
+          { id: rackId }
         )
-        const rows = updated.rows as LsMotorRack[]
         updatedRack = rows[0]
       }
 

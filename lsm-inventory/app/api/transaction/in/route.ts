@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, withTransaction, LsMotorRack } from '@/lib/oracle'
-import oracledb from 'oracledb'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/postgres'
+import { getSession } from '@/lib/auth'
+import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 
 // 입고 처리
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: '로그인이 필요합니다.' },
+        { status: 401 }
+      )
+    }
+
     const data = await request.json()
 
     const { storage, location, itemCode, itemName, qty, remark, user, merge } = data
@@ -17,12 +26,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 기존 데이터 체크
-    const existing = await executeQuery<LsMotorRack>(
-      `SELECT ID, NOW_QTY, ITEM_NAME FROM LS_MOTOR_RACK
-       WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
-      { storage, location, itemCode }
-    )
+    // 기존 데이터 체크 (회사별 필터링)
+    let existing: LsMotorRack[]
+
+    if (isMultiTenantEnabled()) {
+      existing = await executeQuery<LsMotorRack>(
+        `SELECT ID, NOW_QTY, ITEM_NAME FROM LS_MOTOR_RACK
+         WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode AND COMPANY_ID = :companyId`,
+        { storage, location, itemCode, companyId: session.companyId }
+      )
+    } else {
+      existing = await executeQuery<LsMotorRack>(
+        `SELECT ID, NOW_QTY, ITEM_NAME FROM LS_MOTOR_RACK
+         WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
+        { storage, location, itemCode }
+      )
+    }
 
     if (existing.length > 0) {
       const existingItem = existing[0]
@@ -129,15 +148,13 @@ export async function POST(request: NextRequest) {
       )
 
       // 방금 입고된 재고 조회
-      const newRack = await connection.execute<LsMotorRack>(
+      const rows = await connection.query<LsMotorRack>(
         `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
          FROM LS_MOTOR_RACK
          WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
-        { storage, location, itemCode },
-        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        { storage, location, itemCode }
       )
 
-      const rows = newRack.rows as LsMotorRack[]
       return rows[0]
     })
 

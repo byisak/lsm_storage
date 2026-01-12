@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Mail, Lock, User, Loader2, AlertCircle, CheckCircle2, Box } from 'lucide-react'
+import { Mail, Lock, User, Loader2, AlertCircle, CheckCircle2, Box, Building2 } from 'lucide-react'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -14,9 +14,30 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [companyCode, setCompanyCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [multiTenantEnabled, setMultiTenantEnabled] = useState(false)
+  const [configLoading, setConfigLoading] = useState(true)
+
+  // 멀티테넌트 모드 확인
+  useEffect(() => {
+    const checkConfig = async () => {
+      try {
+        const res = await fetch('/api/config')
+        const data = await res.json()
+        if (data.success) {
+          setMultiTenantEnabled(data.config.multiTenantEnabled)
+        }
+      } catch {
+        // 설정 로드 실패시 기본값 사용
+      } finally {
+        setConfigLoading(false)
+      }
+    }
+    checkConfig()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,13 +54,24 @@ export default function RegisterPage() {
       return
     }
 
+    // 멀티테넌트 모드에서 회사 코드 필수
+    if (multiTenantEnabled && !companyCode.trim()) {
+      setError('회사 코드를 입력해주세요.')
+      return
+    }
+
     setLoading(true)
 
     try {
+      const body: Record<string, string> = { name, email, password }
+      if (multiTenantEnabled && companyCode.trim()) {
+        body.companyCode = companyCode.trim().toUpperCase()
+      }
+
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
 
@@ -82,6 +114,14 @@ export default function RegisterPage() {
     )
   }
 
+  if (configLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
       <div className="w-full max-w-sm">
@@ -103,6 +143,32 @@ export default function RegisterPage() {
                 <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {error}
+                </div>
+              )}
+
+              {/* 멀티테넌트 모드에서만 회사 코드 표시 */}
+              {multiTenantEnabled && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">
+                    회사 코드 <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      value={companyCode}
+                      onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
+                      placeholder="회사 코드 (예: LSMECA)"
+                      className="pl-11 h-12 rounded-xl uppercase"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    회사 관리자에게 받은 코드를 입력하세요.{' '}
+                    <Link href="/auth/company-register" className="text-orange-500 hover:underline">
+                      신규 회사 등록
+                    </Link>
+                  </p>
                 </div>
               )}
 

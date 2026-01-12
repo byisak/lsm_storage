@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery } from '@/lib/oracle'
+import { executeQuery } from '@/lib/postgres'
 
 interface SubulRecord {
   ID: number
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID
       FROM LS_MOTOR_SUBUL
       WHERE CATEGORY IN ('출고', '이동(출)', '이동(병합)')
-        AND SUBUL_TIME > SYSDATE - :hoursLimit/24
+        AND SUBUL_TIME > NOW() - :hoursLimit/24
         AND REMARK NOT LIKE '%"undone":true%'
     `
     const params: Record<string, unknown> = { hoursLimit }

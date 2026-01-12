@@ -4,9 +4,15 @@ import { useState } from 'react'
 import { Box, Menu } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { useAuth } from '@/lib/auth-context'
+import Image from 'next/image'
 
 export function MobileHeader() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { company } = useAuth()
+
+  // 회사명 (기본값: LS Mecapion)
+  const companyName = company?.name || 'LS Mecapion'
 
   return (
     <>
@@ -21,12 +27,24 @@ export function MobileHeader() {
               <Menu className="w-5 h-5 text-white" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="bg-white/20 p-1.5 rounded-lg">
-                <Box className="w-5 h-5 text-white" />
-              </div>
+              {company?.logoUrl ? (
+                <div className="w-8 h-8 rounded-lg overflow-hidden bg-white/20">
+                  <Image
+                    src={company.logoUrl}
+                    alt={companyName}
+                    width={32}
+                    height={32}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="bg-white/20 p-1.5 rounded-lg">
+                  <Box className="w-5 h-5 text-white" />
+                </div>
+              )}
               <div>
                 <h1 className="text-base font-bold text-white tracking-tight">
-                  LS Mecapion
+                  {companyName}
                 </h1>
                 <p className="text-[10px] text-white/70 -mt-0.5">재고관리 시스템</p>
               </div>

@@ -57,11 +57,11 @@ export async function executeQuery<T>(
 
 export async function executeInsert(
   sql: string,
-  binds: oracledb.BindParameters = {}
+  binds: Record<string, unknown> | oracledb.BindParameters = {}
 ): Promise<{ rowsAffected: number; lastRowid?: string }> {
   const connection = await getConnection()
   try {
-    const result = await connection.execute(sql, binds, {
+    const result = await connection.execute(sql, binds as oracledb.BindParameters, {
       autoCommit: true,
     })
     return {
@@ -75,11 +75,11 @@ export async function executeInsert(
 
 export async function executeUpdate(
   sql: string,
-  binds: oracledb.BindParameters = {}
+  binds: Record<string, unknown> | oracledb.BindParameters = {}
 ): Promise<number> {
   const connection = await getConnection()
   try {
-    const result = await connection.execute(sql, binds, {
+    const result = await connection.execute(sql, binds as oracledb.BindParameters, {
       autoCommit: true,
     })
     return result.rowsAffected || 0
@@ -90,11 +90,11 @@ export async function executeUpdate(
 
 export async function executeDelete(
   sql: string,
-  binds: oracledb.BindParameters = {}
+  binds: Record<string, unknown> | oracledb.BindParameters = {}
 ): Promise<number> {
   const connection = await getConnection()
   try {
-    const result = await connection.execute(sql, binds, {
+    const result = await connection.execute(sql, binds as oracledb.BindParameters, {
       autoCommit: true,
     })
     return result.rowsAffected || 0
@@ -128,7 +128,11 @@ export async function closePool(): Promise<void> {
   }
 }
 
+// ============================================================
 // 타입 정의
+// COMPANY_ID는 optional로 정의하여 하위 호환성 유지
+// ============================================================
+
 export interface LsMotorRack {
   ID: number
   STORAGE: string
@@ -138,6 +142,7 @@ export interface LsMotorRack {
   NOW_QTY: number
   IN_DAY: Date | null
   REMARK: string | null
+  COMPANY_ID?: string  // 멀티테넌트용 (optional)
 }
 
 export interface LsMotorSubul {
@@ -151,6 +156,7 @@ export interface LsMotorSubul {
   SUBUL_TIME: Date
   REMARK: string | null
   USER_ID: string
+  COMPANY_ID?: string  // 멀티테넌트용 (optional)
 }
 
 export interface LsMotorItem {
@@ -162,6 +168,7 @@ export interface LsMotorItem {
   ERP_INVENTORY10: number
   ERP_INVENTORY11: number
   SHORTAGE: number
+  COMPANY_ID?: string  // 멀티테넌트용 (optional)
 }
 
 export interface LsUser {
@@ -174,6 +181,7 @@ export interface LsUser {
   CREATED_AT: Date
   APPROVED_AT: Date | null
   APPROVED_BY: number | null
+  COMPANY_ID?: string  // 멀티테넌트용 (optional)
 }
 
 export interface LsWarehouse {
@@ -181,4 +189,29 @@ export interface LsWarehouse {
   NAME: string
   SORT_ORDER: number
   CREATED_AT: Date
+  COMPANY_ID?: string  // 멀티테넌트용 (optional)
+}
+
+// ============================================================
+// 회사 테이블 타입 (멀티테넌트)
+// ============================================================
+
+export interface Company {
+  ID: string
+  NAME: string
+  BUSINESS_NUMBER?: string | null
+  REPRESENTATIVE?: string | null
+  PHONE?: string | null
+  EMAIL?: string | null
+  ADDRESS?: string | null
+  LOGO_URL?: string | null
+  THEME_COLOR?: string | null
+  CONTACT_EMAIL?: string | null
+  CONTACT_PHONE?: string | null
+  STATUS: 'ACTIVE' | 'SUSPENDED' | 'DELETED'
+  PLAN_TYPE: 'BASIC' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE'
+  MAX_USERS?: number
+  MAX_WAREHOUSES?: number
+  CREATED_AT?: Date
+  UPDATED_AT?: Date
 }

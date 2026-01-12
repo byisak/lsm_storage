@@ -1,20 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, LsMotorSubul } from '@/lib/oracle'
+import { executeQuery, LsMotorSubul } from '@/lib/postgres'
+import { getSession } from '@/lib/auth'
+import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 
 // 수불 이력 조회
 export async function GET(request: NextRequest) {
   try {
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: '로그인이 필요합니다.' },
+        { status: 401 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const itemCode = searchParams.get('itemCode')
     const limit = parseInt(searchParams.get('limit') || '50')
 
-    let sql = `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID
-               FROM LS_MOTOR_SUBUL`
+    let sql: string
     const binds: Record<string, unknown> = {}
 
-    if (itemCode) {
-      sql += ` WHERE UPPER(ITEM_CODE) LIKE UPPER(:itemCode)`
-      binds.itemCode = `%${itemCode.trim()}%`
+    if (isMultiTenantEnabled()) {
+      // 멀티테넌트: 회사별 필터링
+      sql = `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID
+             FROM LS_MOTOR_SUBUL WHERE COMPANY_ID = :companyId`
+      binds.companyId = session.companyId
+
+      if (itemCode) {
+        sql += ` AND UPPER(ITEM_CODE) LIKE UPPER(:itemCode)`
+        binds.itemCode = `%${itemCode.trim()}%`
+      }
+    } else {
+      // 단일 테넌트: 기존 방식
+      sql = `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID
+             FROM LS_MOTOR_SUBUL`
+
+      if (itemCode) {
+        sql += ` WHERE UPPER(ITEM_CODE) LIKE UPPER(:itemCode)`
+        binds.itemCode = `%${itemCode.trim()}%`
+      }
     }
 
     sql += ` ORDER BY SUBUL_TIME DESC FETCH FIRST :limit ROWS ONLY`

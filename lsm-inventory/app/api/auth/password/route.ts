@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { executeQuery, withTransaction, LsUser } from '@/lib/oracle'
+import { executeQuery, executeUpdate, LsUser } from '@/lib/postgres'
 
 // 비밀번호 변경
 export async function PUT(request: NextRequest) {
@@ -52,13 +52,10 @@ export async function PUT(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(newPassword, 10)
 
     // 비밀번호 업데이트
-    await withTransaction(async (connection) => {
-      await connection.execute(
-        `UPDATE LS_USERS SET PASSWORD = :password WHERE ID = :id`,
-        { password: hashedPassword, id: userId },
-        { autoCommit: false }
-      )
-    })
+    await executeUpdate(
+      `UPDATE LS_USERS SET PASSWORD = :password WHERE ID = :id`,
+      { password: hashedPassword, id: userId }
+    )
 
     return NextResponse.json({
       success: true,
