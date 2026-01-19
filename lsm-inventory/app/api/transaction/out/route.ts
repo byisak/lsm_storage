@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, withTransaction, LsMotorRack } from '@/lib/postgres'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/mysql'
 
 // 출고 처리
 export async function POST(request: NextRequest) {

@@ -4,7 +4,7 @@
  * CSV 파일에서 재고 데이터, 품목 마스터 등을 가져오기
  */
 
-import { executeQuery, executeInsert, executeUpdate, getConnection } from './postgres'
+import { executeQuery, executeInsert, executeUpdate, getConnection } from './mysql'
 import { getCompanyId, isMultiTenantEnabled } from './multi-tenant'
 import { checkFeature, checkRackLimit } from './plan-limits'
 import { logCreate } from './audit-log'

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, withTransaction, LsMotorRack } from '@/lib/postgres'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/mysql'
 
 // 재고 이동 (A 위치 → B 위치)
 export async function POST(request: NextRequest) {

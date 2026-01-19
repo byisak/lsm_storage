@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, withTransaction, LsMotorRack } from '@/lib/postgres'
+import { executeQuery, withTransaction, LsMotorRack } from '@/lib/mysql'
 import { getSession } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 

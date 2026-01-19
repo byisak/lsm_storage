@@ -6,7 +6,7 @@
  */
 
 import { cookies } from 'next/headers'
-import { executeQuery } from './postgres'
+import { executeQuery } from './mysql'
 import { DEFAULT_COMPANY_ID, isMultiTenantEnabled } from './multi-tenant'
 
 // ============================================================

@@ -4,7 +4,7 @@
  * 외부 시스템에서 API에 접근할 수 있는 키를 관리합니다.
  */
 
-import { executeQuery, executeInsert, executeUpdate, executeDelete } from './postgres'
+import { executeQuery, executeInsert, executeUpdate, executeDelete } from './mysql'
 import { getCompanyId, isMultiTenantEnabled, getTenantSession } from './multi-tenant'
 import { checkFeature } from './plan-limits'
 import { createHash, randomBytes } from 'crypto'

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, executeUpdate, LsUser } from '@/lib/postgres'
+import { executeQuery, executeUpdate, LsUser } from '@/lib/mysql'
 import { requireAdmin, AuthError } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 import { checkUserLimit } from '@/lib/plan-limits'

@@ -8,7 +8,7 @@
  */
 
 import { cookies } from 'next/headers'
-import { executeQuery } from './postgres'
+import { executeQuery } from './mysql'
 
 // ============================================================
 // 설정
@@ -199,16 +199,22 @@ export async function getCurrentCompany(): Promise<Company | null> {
 /**
  * 회사 ID 바인드 파라미터를 추가합니다.
  * 기존 바인드 파라미터에 companyId를 추가하여 반환합니다.
+ * 멀티테넌트가 비활성화되면 원본 바인드만 반환합니다.
  */
 export async function withCompanyId<T extends Record<string, unknown>>(
   binds: T
-): Promise<T & { companyId: string }> {
+): Promise<T & { companyId?: string }> {
+  // 멀티테넌트 비활성화시 companyId 추가하지 않음
+  if (!isMultiTenantEnabled()) {
+    return binds as T & { companyId?: string }
+  }
   const companyId = await getCompanyId()
   return { ...binds, companyId }
 }
 
 /**
  * SQL 쿼리에 COMPANY_ID 조건을 추가합니다.
+ * 멀티테넌트가 비활성화되면 원본 SQL을 그대로 반환합니다.
  *
  * @example
  * // Before
@@ -219,6 +225,11 @@ export async function withCompanyId<T extends Record<string, unknown>>(
  * // Result: "SELECT * FROM LS_MOTOR_RACK WHERE LOCATION = :location AND COMPANY_ID = :companyId"
  */
 export function addCompanyFilter(sql: string): string {
+  // 멀티테넌트 비활성화시 원본 SQL 반환
+  if (!isMultiTenantEnabled()) {
+    return sql
+  }
+
   // WHERE 절이 있는지 확인
   const hasWhere = /\bWHERE\b/i.test(sql)
 
@@ -246,6 +257,7 @@ export function addCompanyFilter(sql: string): string {
 
 /**
  * INSERT 쿼리에 COMPANY_ID 컬럼과 값을 추가합니다.
+ * 멀티테넌트가 비활성화되면 원본 SQL을 그대로 반환합니다.
  *
  * @example
  * const sql = "INSERT INTO LS_MOTOR_RACK (STORAGE, LOCATION) VALUES (:storage, :location)"
@@ -253,6 +265,11 @@ export function addCompanyFilter(sql: string): string {
  * // Result: "INSERT INTO LS_MOTOR_RACK (STORAGE, LOCATION, COMPANY_ID) VALUES (:storage, :location, :companyId)"
  */
 export function addCompanyToInsert(sql: string): string {
+  // 멀티테넌트 비활성화시 원본 SQL 반환
+  if (!isMultiTenantEnabled()) {
+    return sql
+  }
+
   // INSERT INTO table (columns) VALUES (values) 형태 파싱
   const match = sql.match(
     /INSERT\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i
@@ -277,12 +294,18 @@ export function addCompanyToInsert(sql: string): string {
 
 /**
  * 리소스가 현재 회사 소유인지 검증합니다.
+ * 멀티테넌트가 비활성화되면 항상 true를 반환합니다.
  */
 export async function verifyResourceOwnership(
   tableName: string,
   resourceId: number | string,
   idColumn: string = 'ID'
 ): Promise<boolean> {
+  // 멀티테넌트 비활성화시 항상 true 반환
+  if (!isMultiTenantEnabled()) {
+    return true
+  }
+
   const companyId = await getCompanyId()
 
   const rows = await executeQuery<{ COMPANY_ID: string }>(
@@ -299,11 +322,17 @@ export async function verifyResourceOwnership(
 
 /**
  * 사용자가 특정 회사에 속해있는지 검증합니다.
+ * 멀티테넌트가 비활성화되면 항상 true를 반환합니다.
  */
 export async function verifyUserCompany(
   userId: number,
   companyId: string
 ): Promise<boolean> {
+  // 멀티테넌트 비활성화시 항상 true 반환
+  if (!isMultiTenantEnabled()) {
+    return true
+  }
+
   const rows = await executeQuery<{ COMPANY_ID: string }>(
     `SELECT COMPANY_ID FROM LS_USERS WHERE ID = :userId`,
     { userId }
@@ -439,11 +468,29 @@ export interface CompanyStats {
 
 /**
  * 현재 회사의 통계를 조회합니다.
+ * 멀티테넌트가 비활성화되면 전체 통계를 반환합니다.
  */
 export async function getCompanyStats(): Promise<CompanyStats> {
-  const companyId = await getCompanyId()
-
   interface CountRow { CNT: number }
+
+  // 멀티테넌트 비활성화시 전체 통계 반환
+  if (!isMultiTenantEnabled()) {
+    const [users, warehouses, racks, items] = await Promise.all([
+      executeQuery<CountRow>(`SELECT COUNT(*) AS CNT FROM ls_users`),
+      executeQuery<CountRow>(`SELECT COUNT(*) AS CNT FROM ls_warehouses`),
+      executeQuery<CountRow>(`SELECT COUNT(*) AS CNT FROM ls_motor_rack`),
+      executeQuery<CountRow>(`SELECT COUNT(*) AS CNT FROM ls_motor_item`),
+    ])
+
+    return {
+      userCount: users[0]?.CNT || 0,
+      warehouseCount: warehouses[0]?.CNT || 0,
+      rackCount: racks[0]?.CNT || 0,
+      itemCount: items[0]?.CNT || 0,
+    }
+  }
+
+  const companyId = await getCompanyId()
 
   const [users, warehouses, racks, items] = await Promise.all([
     executeQuery<CountRow>(

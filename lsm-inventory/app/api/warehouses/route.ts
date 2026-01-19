@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, executeInsert, executeUpdate, executeDelete, LsWarehouse } from '@/lib/postgres'
+import { executeQuery, executeInsert, executeUpdate, executeDelete, LsWarehouse } from '@/lib/mysql'
 import { getSession, requireAdmin, AuthError } from '@/lib/auth'
 import { getCompanyId, isMultiTenantEnabled } from '@/lib/multi-tenant'
 import { checkWarehouseLimit } from '@/lib/plan-limits'

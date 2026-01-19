@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery, withTransaction, Company } from '@/lib/postgres'
+import { executeQuery, withTransaction, Company } from '@/lib/mysql'
 import { hash } from 'bcryptjs'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 

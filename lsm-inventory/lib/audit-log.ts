@@ -4,7 +4,7 @@
  * 시스템의 중요 활동을 추적하고 기록합니다.
  */
 
-import { executeQuery, executeInsert } from './postgres'
+import { executeQuery, executeInsert } from './mysql'
 import { getCompanyId, isMultiTenantEnabled, getTenantSession } from './multi-tenant'
 import { checkFeature } from './plan-limits'
 import { headers } from 'next/headers'

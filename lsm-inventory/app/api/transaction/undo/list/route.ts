@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeQuery } from '@/lib/postgres'
+import { executeQuery } from '@/lib/mysql'
 
 interface SubulRecord {
   ID: number

@@ -4,7 +4,7 @@
  * 각 요금제에 따라 사용 가능한 리소스 한도를 정의합니다.
  */
 
-import { executeQuery } from './postgres'
+import { executeQuery } from './mysql'
 import { getCompanyId, isMultiTenantEnabled } from './multi-tenant'
 
 // ============================================================

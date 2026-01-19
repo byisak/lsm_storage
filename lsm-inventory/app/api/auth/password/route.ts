@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { executeQuery, executeUpdate, LsUser } from '@/lib/postgres'
+import { executeQuery, executeUpdate, LsUser } from '@/lib/mysql'
 
 // 비밀번호 변경
 export async function PUT(request: NextRequest) {

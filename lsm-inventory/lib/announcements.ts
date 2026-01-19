@@ -4,7 +4,7 @@
  * 슈퍼 관리자가 전체 또는 특정 회사에 공지사항을 발송합니다.
  */
 
-import { executeQuery, executeInsert, executeUpdate, executeDelete } from './postgres'
+import { executeQuery, executeInsert, executeUpdate, executeDelete } from './mysql'
 import { getCompanyId, isMultiTenantEnabled, getTenantSession } from './multi-tenant'
 import { getCompanyPlan } from './plan-limits'
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { executeQuery } from '@/lib/postgres'
+import { executeQuery } from '@/lib/mysql'
 import { requireSuperAdmin, AuthError } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, AuthError } from '@/lib/auth'
-import { executeQuery } from '@/lib/postgres'
+import { executeQuery } from '@/lib/mysql'
 import { getCompanyId, isMultiTenantEnabled } from '@/lib/multi-tenant'
 import { checkFeature } from '@/lib/plan-limits'
 

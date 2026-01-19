@@ -4,7 +4,7 @@
  * 재고 데이터, 거래 이력 등을 CSV/Excel 형식으로 내보내기
  */
 
-import { executeQuery } from './postgres'
+import { executeQuery } from './mysql'
 import { getCompanyId, isMultiTenantEnabled } from './multi-tenant'
 import { checkFeature } from './plan-limits'
 
