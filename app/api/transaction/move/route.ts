@@ -140,36 +140,10 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // 3. 이동 이력 기록 (출고) - 복구용 메타데이터 포함
+      // 3. 이동 이력 기록 (출고) - LSM_Warehouse_3D Remark 컬럼 길이 제한으로 간단한 비고만 저장
       const isMerge = existingTarget && merge
       const sourceCategory = isMerge ? '이동(병합)' : '이동(출)'
-
-      // 목적지 rack ID 조회 (신규 생성된 경우)
-      let targetRackId = existingTarget ? existingTarget.idx : null
-      if (!existingTarget) {
-        const newTargetRows = await connection.query<{ idx: number }>(
-          `SELECT idx FROM ls_motor_rack WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
-          { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
-        )
-        if (newTargetRows.length > 0) {
-          targetRackId = newTargetRows[0].idx
-        }
-      }
-
-      const sourceUndoMeta = JSON.stringify({
-        type: 'move_out',
-        sourceRackId: rackId,
-        targetRackId: targetRackId,
-        toStorage: toStorage,
-        toLocation: toLocation,
-        beforeQty: sourceBeforeQty,
-        afterQty: sourceAfterQty,
-        inDay: sourceRack.inDay,
-        originalRemark: sourceRack.remark,
-        isMerge: isMerge,
-        targetBeforeQty: targetBeforeQty,
-      })
-      const sourceRemark = `${sourceUndoMeta}|→ ${toLocation} (${toStorage}) [${sourceBeforeQty}개 → ${sourceAfterQty}개]`
+      const sourceRemark = `→ ${toLocation}`.substring(0, 100)
 
       await connection.execute(
         `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
@@ -190,19 +164,7 @@ export async function POST(request: NextRequest) {
 
       // 4. 이동 이력 기록 (입고) - 병합이 아닌 경우만 기록
       if (!isMerge) {
-        const targetUndoMeta = JSON.stringify({
-          type: 'move_in',
-          sourceRackId: rackId,
-          targetRackId: targetRackId,
-          fromStorage: sourceRack.storage,
-          fromLocation: sourceRack.location,
-          beforeQty: targetBeforeQty,
-          afterQty: targetAfterQty,
-          isNew: !existingTarget,
-        })
-        const targetRemark = existingTarget
-          ? `${targetUndoMeta}|← ${sourceRack.location} (${sourceRack.storage}) [${targetBeforeQty}개 → ${targetAfterQty}개]`
-          : `${targetUndoMeta}|← ${sourceRack.location} (${sourceRack.storage}) [신규]`
+        const targetRemark = `← ${sourceRack.location}`.substring(0, 100)
 
         await connection.execute(
           `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)

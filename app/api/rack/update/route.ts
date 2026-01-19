@@ -199,6 +199,9 @@ export async function PUT(request: NextRequest) {
           ? updateData.nowQty - existingRack.nowQty
           : 0
 
+        // LSM_Warehouse_3D Remark 컬럼 길이 제한으로 100자로 자름
+        const truncatedRemark = changeDescription.substring(0, 100)
+
         await connection.execute(
           `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
@@ -210,7 +213,7 @@ export async function PUT(request: NextRequest) {
             qty: Math.abs(qtyDiff) || 0,
             category: '수정',
             subulTime: now,
-            remark: changeDescription,
+            remark: truncatedRemark,
             userId: user || 'mobile',
           },
           { autoCommit: false }

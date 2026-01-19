@@ -75,7 +75,8 @@ export async function POST(request: NextRequest) {
           { autoCommit: false }
         )
 
-        // 수불 이력 추가 (병합)
+        // 수불 이력 추가 (병합) - LSM_Warehouse_3D Remark 컬럼 길이 제한으로 100자로 자름
+        const mergeRemark = `[${beforeQty}개 → ${afterQty}개] ${remark || ''}`.trim().substring(0, 100)
         await connection.execute(
           `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
             qty,
             category: '입고(병합)',
             subulTime: now,
-            remark: `[${beforeQty}개 → ${afterQty}개] ${remark || ''}`.trim(),
+            remark: mergeRemark,
             userId: user || 'system',
           },
           { autoCommit: false }
@@ -111,6 +112,9 @@ export async function POST(request: NextRequest) {
 
     const now = new Date()
 
+    // LSM_Warehouse_3D Remark 컬럼 길이 제한으로 100자로 자름
+    const truncatedRemark = remark ? String(remark).substring(0, 100) : null
+
     // 트랜잭션으로 처리
     const result = await withTransaction(async (connection) => {
       // 랙에 입고
@@ -124,7 +128,7 @@ export async function POST(request: NextRequest) {
           itemName,
           nowQty: qty,
           inDay: now,
-          remark: remark || null,
+          remark: truncatedRemark,
         },
         { autoCommit: false }
       )
@@ -141,7 +145,7 @@ export async function POST(request: NextRequest) {
           qty,
           category: '입고',
           subulTime: now,
-          remark: remark || null,
+          remark: truncatedRemark,
           userId: user || 'system',
         },
         { autoCommit: false }

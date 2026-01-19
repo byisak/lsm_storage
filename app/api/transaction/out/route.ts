@@ -78,16 +78,8 @@ export async function POST(request: NextRequest) {
         updatedRack = rows[0]
       }
 
-      // 수불 이력 추가 (복구용 메타데이터 포함)
-      const undoMeta = JSON.stringify({
-        type: 'out',
-        rackId: rack.id,
-        beforeQty: rack.nowQty,
-        afterQty: newQty,
-        inDay: rack.inDay,
-        originalRemark: rack.remark,
-      })
-      const fullRemark = remark ? `${undoMeta}|${remark}` : undoMeta
+      // 수불 이력 추가 (LSM_Warehouse_3D Remark 컬럼 길이 제한으로 간단한 비고만 저장)
+      const simpleRemark = remark ? String(remark).substring(0, 100) : null
 
       await connection.execute(
         `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
@@ -100,7 +92,7 @@ export async function POST(request: NextRequest) {
           qty,
           category: '출고',
           subulTime: now,
-          remark: fullRemark,
+          remark: simpleRemark,
           userId: user || 'system',
         },
         { autoCommit: false }
