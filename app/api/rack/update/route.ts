@@ -183,7 +183,8 @@ export async function PUT(request: NextRequest) {
       }
       if (updateData.remark !== undefined) {
         updateFields.push('Remark = :remark')
-        updateBinds.remark = updateData.remark
+        // ls_motor_rack.Remark is NOT NULL, use empty string if null
+        updateBinds.remark = updateData.remark ?? ''
       }
 
       if (updateFields.length > 0) {
