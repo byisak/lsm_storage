@@ -187,7 +187,7 @@ export function createSessionData(user: UserWithCompany): AuthSession {
   return {
     id: user.ID,
     name: user.NAME,
-    email: user.EMAIL,
+    email: user.EMAIL || user.USERNAME || '',
     role: user.ROLE,
     companyId,
     companyName: user.COMPANY_NAME,
@@ -254,10 +254,11 @@ export async function findUserByEmail(email: string): Promise<UserWithCompany | 
 
     const user = users[0]
 
-    // status를 boolean에서 문자열로 변환 (1/true = APPROVED, 0/false = REJECTED)
+    // status를 boolean/number에서 문자열로 변환 (1/true = APPROVED, 0/false = REJECTED)
     const statusValue = user.STATUS
-    const normalizedStatus: 'APPROVED' | 'REJECTED' =
-      (statusValue === true || statusValue === 1) ? 'APPROVED' : 'REJECTED'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isApproved = statusValue === true || (statusValue as any) === 1 || String(statusValue) === '1'
+    const normalizedStatus: 'APPROVED' | 'REJECTED' = isApproved ? 'APPROVED' : 'REJECTED'
 
     return {
       ...user,

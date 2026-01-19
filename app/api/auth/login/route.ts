@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import bcrypt from 'bcryptjs'
 import { findUserByEmail, createSessionData, toUserInfo } from '@/lib/auth'
+import { verifyPassword } from '@/lib/password'
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 비밀번호 검증
-    const isValidPassword = await bcrypt.compare(password, user.PASSWORD)
+    // 비밀번호 검증 (scrypt/bcrypt 자동 감지)
+    const isValidPassword = await verifyPassword(password, user.PASSWORD)
     if (!isValidPassword) {
       return NextResponse.json(
         { success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다.' },
