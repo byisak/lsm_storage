@@ -59,9 +59,11 @@ export async function GET(request: NextRequest) {
       FROM ls_motor_subul
       WHERE Category IN ('출고', '이동(출)', '이동(병합)')
         AND Subul_Time > DATE_SUB(NOW(), INTERVAL ${hoursLimit} HOUR)
-        AND (Remark IS NULL OR Remark NOT LIKE '%"undone":true%')
+        AND (Remark IS NULL OR Remark NOT LIKE :undonePattern)
     `
-    const params: Record<string, unknown> = {}
+    const params: Record<string, unknown> = {
+      undonePattern: '%"undone":true%',
+    }
 
     // 사용자 필터링 (선택적)
     if (userId) {
