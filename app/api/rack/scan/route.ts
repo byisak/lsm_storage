@@ -6,14 +6,14 @@ import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 // 조회 결과를 camelCase로 변환하는 헬퍼 함수
 function formatItems(items: LsMotorRack[]) {
   return items.map(item => ({
-    id: item.ID,
+    id: item.idx,
     storage: item.storage,
     location: item.Location,
     itemCode: item.itemCode,
     itemName: item.itemName,
     nowQty: item.Now_Qty,
     inDay: item.In_day,
-    remark: item.remark,
+    remark: item.Remark,
   }))
 }
 
@@ -49,19 +49,19 @@ export async function POST(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark, COMPANY_ID
+        `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark, COMPANY_ID
          FROM ls_motor_rack
          WHERE storage = :storage AND Location = :location AND COMPANY_ID = :companyId
-         ORDER BY In_day DESC NULLS LAST`,
+         ORDER BY In_day DESC`,
         { storage: storageVal, location: locationVal, companyId: session.companyId }
       )
     } else {
       // 단일 테넌트: 기존 방식
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
+        `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark
          FROM ls_motor_rack
          WHERE storage = :storage AND Location = :location
-         ORDER BY In_day DESC NULLS LAST`,
+         ORDER BY In_day DESC`,
         { storage: storageVal, location: locationVal }
       )
     }
@@ -123,19 +123,19 @@ export async function GET(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark, COMPANY_ID
+        `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark, COMPANY_ID
          FROM ls_motor_rack
          WHERE storage = :storage AND Location = :location AND COMPANY_ID = :companyId
-         ORDER BY In_day DESC NULLS LAST`,
+         ORDER BY In_day DESC`,
         { storage: storageVal, location: locationVal, companyId: session.companyId }
       )
     } else {
       // 단일 테넌트: 기존 방식
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
+        `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark
          FROM ls_motor_rack
          WHERE storage = :storage AND Location = :location
-         ORDER BY In_day DESC NULLS LAST`,
+         ORDER BY In_day DESC`,
         { storage: storageVal, location: locationVal }
       )
     }

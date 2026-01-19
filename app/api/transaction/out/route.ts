@@ -18,8 +18,8 @@ export async function POST(request: NextRequest) {
 
     // 기존 재고 확인
     const rackRows = await executeQuery<LsMotorRack>(
-      `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
-       FROM ls_motor_rack WHERE ID = :id`,
+      `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark
+       FROM ls_motor_rack WHERE idx = :id`,
       { id: rackId }
     )
 
@@ -31,14 +31,14 @@ export async function POST(request: NextRequest) {
     }
 
     const rack = {
-      id: rackRows[0].ID,
+      id: rackRows[0].idx,
       storage: rackRows[0].storage,
       location: rackRows[0].Location,
       itemCode: rackRows[0].itemCode,
       itemName: rackRows[0].itemName,
       nowQty: rackRows[0].Now_Qty,
       inDay: rackRows[0].In_day,
-      remark: rackRows[0].remark,
+      remark: rackRows[0].Remark,
     }
 
     if (rack.nowQty < qty) {
@@ -58,21 +58,21 @@ export async function POST(request: NextRequest) {
       if (newQty === 0) {
         // 재고가 0이면 삭제
         await connection.execute(
-          `DELETE FROM ls_motor_rack WHERE ID = :id`,
+          `DELETE FROM ls_motor_rack WHERE idx = :id`,
           { id: rackId },
           { autoCommit: false }
         )
       } else {
         // 재고 차감
         await connection.execute(
-          `UPDATE ls_motor_rack SET Now_Qty = :nowQty WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET Now_Qty = :nowQty WHERE idx = :id`,
           { nowQty: newQty, id: rackId },
           { autoCommit: false }
         )
 
         const rows = await connection.query<LsMotorRack>(
-          `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
-           FROM ls_motor_rack WHERE ID = :id`,
+          `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark
+           FROM ls_motor_rack WHERE idx = :id`,
           { id: rackId }
         )
         updatedRack = rows[0]
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       const fullRemark = remark ? `${undoMeta}|${remark}` : undoMeta
 
       await connection.execute(
-        `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
+        `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
          VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
         {
           storage: rack.storage,
@@ -113,14 +113,14 @@ export async function POST(request: NextRequest) {
       success: true,
       message: '출고가 완료되었습니다.',
       data: result ? {
-        id: result.ID,
+        id: result.idx,
         storage: result.storage,
         location: result.Location,
         itemCode: result.itemCode,
         itemName: result.itemName,
         nowQty: result.Now_Qty,
         inDay: result.In_day,
-        remark: result.remark,
+        remark: result.Remark,
       } : null,
       deleted: result === null,
     })

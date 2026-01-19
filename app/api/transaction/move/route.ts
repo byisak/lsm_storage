@@ -16,8 +16,8 @@ export async function POST(request: NextRequest) {
 
     // 원본 재고 조회
     const sourceRows = await executeQuery<LsMotorRack>(
-      `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
-       FROM ls_motor_rack WHERE ID = :id`,
+      `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark
+       FROM ls_motor_rack WHERE idx = :id`,
       { id: rackId }
     )
 
@@ -29,14 +29,14 @@ export async function POST(request: NextRequest) {
     }
 
     const sourceRack = {
-      id: sourceRows[0].ID,
+      id: sourceRows[0].idx,
       storage: sourceRows[0].storage,
       location: sourceRows[0].Location,
       itemCode: sourceRows[0].itemCode,
       itemName: sourceRows[0].itemName,
       nowQty: sourceRows[0].Now_Qty,
       inDay: sourceRows[0].In_day,
-      remark: sourceRows[0].remark,
+      remark: sourceRows[0].Remark,
     }
 
     if (qty > sourceRack.nowQty) {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // 목적지에 동일 품목이 있는지 미리 확인 (병합 확인용)
     const existingTarget = await executeQuery<LsMotorRack>(
-      `SELECT ID, Now_Qty, itemName FROM ls_motor_rack
+      `SELECT idx, Now_Qty, itemName FROM ls_motor_rack
        WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
       { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
     )
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         canMerge: true,
         message: '이동 위치에 동일한 품목이 이미 존재합니다. 수량을 병합하시겠습니까?',
         existingItem: {
-          id: targetItem.ID,
+          id: targetItem.idx,
           currentQty: targetItem.Now_Qty,
           itemName: targetItem.itemName,
         },
@@ -86,14 +86,14 @@ export async function POST(request: NextRequest) {
       if (qty === sourceRack.nowQty) {
         // 전체 이동이면 삭제
         await connection.execute(
-          `DELETE FROM ls_motor_rack WHERE ID = :id`,
+          `DELETE FROM ls_motor_rack WHERE idx = :id`,
           { id: rackId },
           { autoCommit: false }
         )
       } else {
         // 부분 이동이면 수량 감소
         await connection.execute(
-          `UPDATE ls_motor_rack SET Now_Qty = :nowQty WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET Now_Qty = :nowQty WHERE idx = :id`,
           { nowQty: sourceRack.nowQty - qty, id: rackId },
           { autoCommit: false }
         )
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 
       // 2. 목적지에 동일 품목이 있는지 확인
       const targetRows = await connection.query<LsMotorRack>(
-        `SELECT ID, Now_Qty FROM ls_motor_rack
+        `SELECT idx, Now_Qty FROM ls_motor_rack
          WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
         { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
       )
@@ -118,14 +118,14 @@ export async function POST(request: NextRequest) {
       if (existingTarget) {
         // 기존 재고에 수량 추가
         await connection.execute(
-          `UPDATE ls_motor_rack SET Now_Qty = :nowQty WHERE ID = :id`,
-          { nowQty: existingTarget.Now_Qty + qty, id: existingTarget.ID },
+          `UPDATE ls_motor_rack SET Now_Qty = :nowQty WHERE idx = :id`,
+          { nowQty: existingTarget.Now_Qty + qty, id: existingTarget.idx },
           { autoCommit: false }
         )
       } else {
         // 새 재고 생성
         await connection.execute(
-          `INSERT INTO ls_motor_rack (storage, Location, itemCode, itemName, Now_Qty, In_day, remark)
+          `INSERT INTO ls_motor_rack (storage, Location, itemCode, itemName, Now_Qty, In_day, Remark)
            VALUES (:storage, :location, :itemCode, :itemName, :nowQty, :inDay, :remark)`,
           {
             storage: toStorage,
@@ -145,14 +145,14 @@ export async function POST(request: NextRequest) {
       const sourceCategory = isMerge ? '이동(병합)' : '이동(출)'
 
       // 목적지 rack ID 조회 (신규 생성된 경우)
-      let targetRackId = existingTarget ? existingTarget.ID : null
+      let targetRackId = existingTarget ? existingTarget.idx : null
       if (!existingTarget) {
-        const newTargetRows = await connection.query<{ ID: number }>(
-          `SELECT ID FROM ls_motor_rack WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
+        const newTargetRows = await connection.query<{ idx: number }>(
+          `SELECT idx FROM ls_motor_rack WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
           { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
         )
         if (newTargetRows.length > 0) {
-          targetRackId = newTargetRows[0].ID
+          targetRackId = newTargetRows[0].idx
         }
       }
 
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       const sourceRemark = `${sourceUndoMeta}|→ ${toLocation} (${toStorage}) [${sourceBeforeQty}개 → ${sourceAfterQty}개]`
 
       await connection.execute(
-        `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
+        `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
          VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
         {
           storage: sourceRack.storage,
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
           : `${targetUndoMeta}|← ${sourceRack.location} (${sourceRack.storage}) [신규]`
 
         await connection.execute(
-          `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
+          `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage: toStorage,

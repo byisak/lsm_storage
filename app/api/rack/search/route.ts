@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark, COMPANY_ID
+        `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark, COMPANY_ID
          FROM ls_motor_rack
          WHERE UPPER(Location) LIKE UPPER(:searchTerm)
            AND COMPANY_ID = :companyId
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     } else {
       // 단일 테넌트: 기존 방식
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
+        `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark
          FROM ls_motor_rack
          WHERE UPPER(Location) LIKE UPPER(:searchTerm)
          ORDER BY Location ASC`,
@@ -50,14 +50,14 @@ export async function GET(request: NextRequest) {
 
     // 컬럼명을 camelCase로 변환
     const formattedItems = items.map(item => ({
-      id: item.ID,
+      id: item.idx,
       storage: item.storage,
       location: item.Location,
       itemCode: item.itemCode,
       itemName: item.itemName,
       nowQty: item.Now_Qty,
       inDay: item.In_day,
-      remark: item.remark,
+      remark: item.Remark,
     }))
 
     return NextResponse.json({

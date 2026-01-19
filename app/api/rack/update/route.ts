@@ -73,14 +73,14 @@ export async function PUT(request: NextRequest) {
 
     if (isMultiTenantEnabled()) {
       existingRows = await executeQuery<LsMotorRack>(
-        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark, COMPANY_ID
-         FROM ls_motor_rack WHERE ID = :id AND COMPANY_ID = :companyId`,
+        `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark, COMPANY_ID
+         FROM ls_motor_rack WHERE idx = :id AND COMPANY_ID = :companyId`,
         { id, companyId: session.companyId }
       )
     } else {
       existingRows = await executeQuery<LsMotorRack>(
-        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
-         FROM ls_motor_rack WHERE ID = :id`,
+        `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark
+         FROM ls_motor_rack WHERE idx = :id`,
         { id }
       )
     }
@@ -93,14 +93,14 @@ export async function PUT(request: NextRequest) {
     }
 
     const existingRack = {
-      id: existingRows[0].ID,
+      id: existingRows[0].idx,
       storage: existingRows[0].storage,
       location: existingRows[0].Location,
       itemCode: existingRows[0].itemCode,
       itemName: existingRows[0].itemName,
       nowQty: existingRows[0].Now_Qty,
       inDay: existingRows[0].In_day,
-      remark: existingRows[0].remark,
+      remark: existingRows[0].Remark,
     }
 
     // 수정 데이터 구성
@@ -125,7 +125,7 @@ export async function PUT(request: NextRequest) {
       await withTransaction(async (connection) => {
         // 삭제 이력 기록
         await connection.execute(
-          `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
+          `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage: existingRack.storage,
@@ -143,7 +143,7 @@ export async function PUT(request: NextRequest) {
 
         // 재고 삭제
         await connection.execute(
-          `DELETE FROM ls_motor_rack WHERE ID = :id`,
+          `DELETE FROM ls_motor_rack WHERE idx = :id`,
           { id },
           { autoCommit: false }
         )
@@ -182,13 +182,13 @@ export async function PUT(request: NextRequest) {
         updateBinds.inDay = updateData.inDay
       }
       if (updateData.remark !== undefined) {
-        updateFields.push('remark = :remark')
+        updateFields.push('Remark = :remark')
         updateBinds.remark = updateData.remark
       }
 
       if (updateFields.length > 0) {
         await connection.execute(
-          `UPDATE ls_motor_rack SET ${updateFields.join(', ')} WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET ${updateFields.join(', ')} WHERE idx = :id`,
           updateBinds
         )
       }
@@ -200,7 +200,7 @@ export async function PUT(request: NextRequest) {
           : 0
 
         await connection.execute(
-          `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
+          `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage: existingRack.storage,
@@ -219,8 +219,8 @@ export async function PUT(request: NextRequest) {
 
       // 업데이트된 데이터 조회
       const rows = await connection.query<LsMotorRack>(
-        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
-         FROM ls_motor_rack WHERE ID = :id`,
+        `SELECT idx, storage, Location, itemCode, itemName, Now_Qty, In_day, Remark
+         FROM ls_motor_rack WHERE idx = :id`,
         { id }
       )
 
@@ -231,14 +231,14 @@ export async function PUT(request: NextRequest) {
       success: true,
       message: '재고가 수정되었습니다.',
       data: updatedRack ? {
-        id: updatedRack.ID,
+        id: updatedRack.idx,
         storage: updatedRack.storage,
         location: updatedRack.Location,
         itemCode: updatedRack.itemCode,
         itemName: updatedRack.itemName,
         nowQty: updatedRack.Now_Qty,
         inDay: updatedRack.In_day,
-        remark: updatedRack.remark,
+        remark: updatedRack.Remark,
       } : null,
     })
   } catch (error) {
