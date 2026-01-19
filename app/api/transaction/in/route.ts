@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
 
     const now = new Date()
 
-    // LSM_Warehouse_3D Remark 컬럼 길이 제한으로 100자로 자름
-    const truncatedRemark = remark ? String(remark).substring(0, 100) : null
+    // LSM_Warehouse_3D Remark 컬럼은 NOT NULL이므로 빈 문자열 사용
+    const truncatedRemark = remark ? String(remark).substring(0, 100) : ''
 
     // 트랜잭션으로 처리
     const result = await withTransaction(async (connection) => {

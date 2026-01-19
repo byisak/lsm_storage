@@ -78,8 +78,8 @@ export async function POST(request: NextRequest) {
         updatedRack = rows[0]
       }
 
-      // 수불 이력 추가 (LSM_Warehouse_3D Remark 컬럼 길이 제한으로 간단한 비고만 저장)
-      const simpleRemark = remark ? String(remark).substring(0, 100) : null
+      // 수불 이력 추가 (LSM_Warehouse_3D Remark 컬럼은 NOT NULL이므로 빈 문자열 사용)
+      const simpleRemark = remark ? String(remark).substring(0, 100) : ''
 
       await connection.execute(
         `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
