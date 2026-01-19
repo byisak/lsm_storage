@@ -39,6 +39,7 @@ function convertBinds(
   binds: Record<string, unknown> = {}
 ): { sql: string; values: unknown[] } {
   const values: unknown[] = []
+  const missingBinds: string[] = []
 
   const convertedSql = sql.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, bindName) => {
     const key = bindName.toLowerCase()
@@ -59,12 +60,23 @@ function convertBinds(
     }
 
     if (!found) {
+      missingBinds.push(bindName)
       return match
     }
 
     values.push(value)
     return '?'
   })
+
+  // Throw an error if any bind placeholders were not found
+  if (missingBinds.length > 0) {
+    const availableKeys = Object.keys(binds).join(', ')
+    throw new Error(
+      `Missing bind values for: ${missingBinds.join(', ')}. ` +
+      `Available binds: [${availableKeys}]. ` +
+      `SQL: ${sql.substring(0, 200)}...`
+    )
+  }
 
   return { sql: convertedSql, values }
 }
@@ -143,7 +155,8 @@ export interface TransactionClient {
 
 function wrapClientForTransaction(conn: PoolConnection): TransactionClient {
   return {
-    async execute(sql: string, binds: Record<string, unknown> = {}) {
+    async execute(sql: string, binds: Record<string, unknown> = {}, _options?: { autoCommit?: boolean }) {
+      // _options is ignored since transaction handles commit/rollback
       const { sql: convertedSql, values } = convertBinds(sql, binds)
       await conn.query(convertedSql, values)
     },
