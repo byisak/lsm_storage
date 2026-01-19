@@ -72,14 +72,8 @@ export async function executeQuery<T>(
     const { sql: convertedSql, values } = convertBinds(sql, binds)
     const [rows] = await conn.query<RowDataPacket[]>(convertedSql, values)
 
-    // 컬럼명을 대문자로 변환 (기존 코드 호환성)
-    return rows.map((row) => {
-      const upperRow: Record<string, unknown> = {}
-      for (const [key, value] of Object.entries(row)) {
-        upperRow[key.toUpperCase()] = value
-      }
-      return upperRow as T
-    })
+    // 원본 컬럼명 유지 (LSM_Warehouse_3D 호환)
+    return rows as T[]
   } finally {
     conn.release()
   }
