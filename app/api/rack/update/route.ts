@@ -74,13 +74,13 @@ export async function PUT(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       existingRows = await executeQuery<LsMotorRack>(
         `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK, COMPANY_ID
-         FROM LS_MOTOR_RACK WHERE ID = :id AND COMPANY_ID = :companyId`,
+         FROM ls_motor_rack WHERE ID = :id AND COMPANY_ID = :companyId`,
         { id, companyId: session.companyId }
       )
     } else {
       existingRows = await executeQuery<LsMotorRack>(
         `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
-         FROM LS_MOTOR_RACK WHERE ID = :id`,
+         FROM ls_motor_rack WHERE ID = :id`,
         { id }
       )
     }
@@ -125,7 +125,7 @@ export async function PUT(request: NextRequest) {
       await withTransaction(async (connection) => {
         // 삭제 이력 기록
         await connection.execute(
-          `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+          `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage: existingRack.storage,
@@ -143,7 +143,7 @@ export async function PUT(request: NextRequest) {
 
         // 재고 삭제
         await connection.execute(
-          `DELETE FROM LS_MOTOR_RACK WHERE ID = :id`,
+          `DELETE FROM ls_motor_rack WHERE ID = :id`,
           { id },
           { autoCommit: false }
         )
@@ -188,7 +188,7 @@ export async function PUT(request: NextRequest) {
 
       if (updateFields.length > 0) {
         await connection.execute(
-          `UPDATE LS_MOTOR_RACK SET ${updateFields.join(', ')} WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET ${updateFields.join(', ')} WHERE ID = :id`,
           updateBinds
         )
       }
@@ -200,7 +200,7 @@ export async function PUT(request: NextRequest) {
           : 0
 
         await connection.execute(
-          `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+          `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage: existingRack.storage,
@@ -220,7 +220,7 @@ export async function PUT(request: NextRequest) {
       // 업데이트된 데이터 조회
       const rows = await connection.query<LsMotorRack>(
         `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
-         FROM LS_MOTOR_RACK WHERE ID = :id`,
+         FROM ls_motor_rack WHERE ID = :id`,
         { id }
       )
 

@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN SUBUL_TYPE = 'MOVE' THEN 1 ELSE 0 END) AS MOVE_COUNT,
         SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN QTY ELSE 0 END) AS IN_QTY,
         SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN QTY ELSE 0 END) AS OUT_QTY
-      FROM LS_MOTOR_SUBUL
+      FROM ls_motor_subul
       WHERE SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
     `
 
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN QTY ELSE 0 END) AS IN_QTY,
         SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN QTY ELSE 0 END) AS OUT_QTY,
         SUM(QTY) AS TOTAL_QTY
-      FROM LS_MOTOR_SUBUL
+      FROM ls_motor_subul
       WHERE SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
     `
 
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
         COUNT(DISTINCT ITEM_CODE) AS ITEM_COUNT,
         SUM(QTY) AS TOTAL_QTY,
         COUNT(DISTINCT LOCATION) AS LOCATIONS
-      FROM LS_MOTOR_RACK
+      FROM ls_motor_rack
     `
 
     const warehouseBinds: Record<string, unknown> = {}
@@ -160,8 +160,8 @@ export async function GET(request: NextRequest) {
         u.NAME AS USER_NAME,
         COUNT(*) AS TRANS_COUNT,
         MAX(s.SUBUL_TIME) AS LAST_ACTIVITY
-      FROM LS_MOTOR_SUBUL s
-      LEFT JOIN LS_USERS u ON s.USER_ID = u.ID
+      FROM ls_motor_subul s
+      LEFT JOIN ls_users u ON s.USER_ID = u.ID
       WHERE s.SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
     `
 
@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN QTY ELSE 0 END) AS TOTAL_OUT_QTY,
         COUNT(DISTINCT ITEM_CODE) AS UNIQUE_ITEMS,
         COUNT(DISTINCT USER_ID) AS ACTIVE_USERS
-      FROM LS_MOTOR_SUBUL
+      FROM ls_motor_subul
       WHERE SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
     `
 

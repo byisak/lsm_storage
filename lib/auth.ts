@@ -233,7 +233,7 @@ export async function findUserByEmail(email: string): Promise<UserWithCompany | 
       `SELECT u.ID, u.NAME, u.EMAIL, u.PASSWORD, u.STATUS, u.ROLE,
               u.CREATED_AT, u.APPROVED_AT, u.APPROVED_BY, u.COMPANY_ID,
               c.NAME AS COMPANY_NAME
-       FROM LS_USERS u
+       FROM ls_users u
        LEFT JOIN COMPANIES c ON u.COMPANY_ID = c.ID
        WHERE u.EMAIL = :email`,
       { email: normalizedEmail }
@@ -243,7 +243,7 @@ export async function findUserByEmail(email: string): Promise<UserWithCompany | 
     // 단일 테넌트: 기존 방식
     const users = await executeQuery<UserWithCompany>(
       `SELECT ID, NAME, EMAIL, PASSWORD, STATUS, ROLE, CREATED_AT, APPROVED_AT, APPROVED_BY
-       FROM LS_USERS
+       FROM ls_users
        WHERE EMAIL = :email`,
       { email: normalizedEmail }
     )

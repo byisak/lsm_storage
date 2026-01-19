@@ -26,7 +26,7 @@ export async function PUT(request: NextRequest) {
 
     // 사용자 조회
     const users = await executeQuery<LsUser>(
-      `SELECT ID, PASSWORD FROM LS_USERS WHERE ID = :id`,
+      `SELECT ID, PASSWORD FROM ls_users WHERE ID = :id`,
       { id: userId }
     )
 
@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest) {
 
     // 비밀번호 업데이트
     await executeUpdate(
-      `UPDATE LS_USERS SET PASSWORD = :password WHERE ID = :id`,
+      `UPDATE ls_users SET PASSWORD = :password WHERE ID = :id`,
       { password: hashedPassword, id: userId }
     )
 

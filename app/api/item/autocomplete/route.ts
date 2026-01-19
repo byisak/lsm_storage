@@ -27,13 +27,13 @@ export async function GET(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       allItems = await executeQuery<LsMotorItem>(
-        `SELECT ITEM_CODE, ITEM_NAME FROM LS_MOTOR_ITEM WHERE COMPANY_ID = :companyId`,
+        `SELECT ITEM_CODE, ITEM_NAME FROM ls_motor_item WHERE COMPANY_ID = :companyId`,
         { companyId: session.companyId }
       )
     } else {
       // 단일 테넌트: 기존 방식
       allItems = await executeQuery<LsMotorItem>(
-        `SELECT ITEM_CODE, ITEM_NAME FROM LS_MOTOR_ITEM`
+        `SELECT ITEM_CODE, ITEM_NAME FROM ls_motor_item`
       )
     }
 

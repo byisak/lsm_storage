@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       // 멀티테넌트: 같은 회사 사용자만 조회
       users = await executeQuery<LsUser>(
         `SELECT ID, NAME, EMAIL, STATUS, ROLE, CREATED_AT, APPROVED_AT, COMPANY_ID
-         FROM LS_USERS
+         FROM ls_users
          WHERE STATUS = :status AND COMPANY_ID = :companyId
          ORDER BY CREATED_AT DESC`,
         { status, companyId }
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       // 단일 테넌트: 기존 방식
       users = await executeQuery<LsUser>(
         `SELECT ID, NAME, EMAIL, STATUS, ROLE, CREATED_AT, APPROVED_AT
-         FROM LS_USERS
+         FROM ls_users
          WHERE STATUS = :status
          ORDER BY CREATED_AT DESC`,
         { status }
@@ -107,7 +107,7 @@ export async function PUT(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 같은 회사 사용자만 수정 가능
       rowsAffected = await executeUpdate(
-        `UPDATE LS_USERS
+        `UPDATE ls_users
          SET STATUS = :status,
              APPROVED_AT = CURRENT_TIMESTAMP,
              APPROVED_BY = :approvedBy
@@ -122,7 +122,7 @@ export async function PUT(request: NextRequest) {
     } else {
       // 단일 테넌트: 기존 방식
       rowsAffected = await executeUpdate(
-        `UPDATE LS_USERS
+        `UPDATE ls_users
          SET STATUS = :status,
              APPROVED_AT = CURRENT_TIMESTAMP,
              APPROVED_BY = :approvedBy

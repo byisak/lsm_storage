@@ -24,7 +24,7 @@ export async function GET() {
       // 멀티테넌트 모드: 회사별 필터링
       warehouses = await executeQuery<LsWarehouse>(
         `SELECT ID, NAME, SORT_ORDER, CREATED_AT, COMPANY_ID
-         FROM LS_WAREHOUSES
+         FROM ls_warehouses
          WHERE COMPANY_ID = :companyId
          ORDER BY SORT_ORDER, ID`,
         { companyId }
@@ -33,7 +33,7 @@ export async function GET() {
       // 단일 테넌트 모드: 기존 방식 (하위 호환)
       warehouses = await executeQuery<LsWarehouse>(
         `SELECT ID, NAME, SORT_ORDER, CREATED_AT
-         FROM LS_WAREHOUSES
+         FROM ls_warehouses
          ORDER BY SORT_ORDER, ID`
       )
     }
@@ -92,12 +92,12 @@ export async function POST(request: NextRequest) {
 
     if (isMultiTenantEnabled()) {
       existing = await executeQuery<LsWarehouse>(
-        `SELECT ID FROM LS_WAREHOUSES WHERE ID = :id AND COMPANY_ID = :companyId`,
+        `SELECT ID FROM ls_warehouses WHERE ID = :id AND COMPANY_ID = :companyId`,
         { id, companyId }
       )
     } else {
       existing = await executeQuery<LsWarehouse>(
-        `SELECT ID FROM LS_WAREHOUSES WHERE ID = :id`,
+        `SELECT ID FROM ls_warehouses WHERE ID = :id`,
         { id }
       )
     }
@@ -115,26 +115,26 @@ export async function POST(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       maxOrder = await executeQuery<{ MAX_ORDER: number }>(
         `SELECT COALESCE(MAX(SORT_ORDER), 0) + 1 AS MAX_ORDER
-         FROM LS_WAREHOUSES
+         FROM ls_warehouses
          WHERE COMPANY_ID = :companyId`,
         { companyId }
       )
     } else {
       maxOrder = await executeQuery<{ MAX_ORDER: number }>(
-        `SELECT COALESCE(MAX(SORT_ORDER), 0) + 1 AS MAX_ORDER FROM LS_WAREHOUSES`
+        `SELECT COALESCE(MAX(SORT_ORDER), 0) + 1 AS MAX_ORDER FROM ls_warehouses`
       )
     }
 
     // 창고 추가 (COMPANY_ID 포함)
     if (isMultiTenantEnabled()) {
       await executeInsert(
-        `INSERT INTO LS_WAREHOUSES (ID, NAME, SORT_ORDER, COMPANY_ID)
+        `INSERT INTO ls_warehouses (ID, NAME, SORT_ORDER, COMPANY_ID)
          VALUES (:id, :name, :sortOrder, :companyId)`,
         { id, name, sortOrder: maxOrder[0]?.MAX_ORDER || 1, companyId }
       )
     } else {
       await executeInsert(
-        `INSERT INTO LS_WAREHOUSES (ID, NAME, SORT_ORDER)
+        `INSERT INTO ls_warehouses (ID, NAME, SORT_ORDER)
          VALUES (:id, :name, :sortOrder)`,
         { id, name, sortOrder: maxOrder[0]?.MAX_ORDER || 1 }
       )
@@ -181,14 +181,14 @@ export async function PUT(request: NextRequest) {
 
     if (isMultiTenantEnabled()) {
       rowsAffected = await executeUpdate(
-        `UPDATE LS_WAREHOUSES
+        `UPDATE ls_warehouses
          SET NAME = :name, SORT_ORDER = :sortOrder
          WHERE ID = :id AND COMPANY_ID = :companyId`,
         { id, name, sortOrder: sortOrder || 0, companyId }
       )
     } else {
       rowsAffected = await executeUpdate(
-        `UPDATE LS_WAREHOUSES
+        `UPDATE ls_warehouses
          SET NAME = :name, SORT_ORDER = :sortOrder
          WHERE ID = :id`,
         { id, name, sortOrder: sortOrder || 0 }
@@ -243,12 +243,12 @@ export async function DELETE(request: NextRequest) {
 
     if (isMultiTenantEnabled()) {
       rowsAffected = await executeDelete(
-        `DELETE FROM LS_WAREHOUSES WHERE ID = :id AND COMPANY_ID = :companyId`,
+        `DELETE FROM ls_warehouses WHERE ID = :id AND COMPANY_ID = :companyId`,
         { id, companyId }
       )
     } else {
       rowsAffected = await executeDelete(
-        `DELETE FROM LS_WAREHOUSES WHERE ID = :id`,
+        `DELETE FROM ls_warehouses WHERE ID = :id`,
         { id }
       )
     }

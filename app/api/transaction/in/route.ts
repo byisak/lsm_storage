@@ -31,13 +31,13 @@ export async function POST(request: NextRequest) {
 
     if (isMultiTenantEnabled()) {
       existing = await executeQuery<LsMotorRack>(
-        `SELECT ID, NOW_QTY, ITEM_NAME FROM LS_MOTOR_RACK
+        `SELECT ID, NOW_QTY, ITEM_NAME FROM ls_motor_rack
          WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode AND COMPANY_ID = :companyId`,
         { storage, location, itemCode, companyId: session.companyId }
       )
     } else {
       existing = await executeQuery<LsMotorRack>(
-        `SELECT ID, NOW_QTY, ITEM_NAME FROM LS_MOTOR_RACK
+        `SELECT ID, NOW_QTY, ITEM_NAME FROM ls_motor_rack
          WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
         { storage, location, itemCode }
       )
@@ -70,14 +70,14 @@ export async function POST(request: NextRequest) {
       await withTransaction(async (connection) => {
         // 기존 재고 수량 업데이트
         await connection.execute(
-          `UPDATE LS_MOTOR_RACK SET NOW_QTY = :nowQty WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET NOW_QTY = :nowQty WHERE ID = :id`,
           { nowQty: afterQty, id: existingItem.ID },
           { autoCommit: false }
         )
 
         // 수불 이력 추가 (병합)
         await connection.execute(
-          `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+          `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage,
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     const result = await withTransaction(async (connection) => {
       // 랙에 입고
       await connection.execute(
-        `INSERT INTO LS_MOTOR_RACK (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
+        `INSERT INTO ls_motor_rack (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
          VALUES (:storage, :location, :itemCode, :itemName, :nowQty, :inDay, :remark)`,
         {
           storage,
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
 
       // 수불 이력 추가
       await connection.execute(
-        `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+        `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
          VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
         {
           storage,
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
       // 방금 입고된 재고 조회
       const rows = await connection.query<LsMotorRack>(
         `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
-         FROM LS_MOTOR_RACK
+         FROM ls_motor_rack
          WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
         { storage, location, itemCode }
       )

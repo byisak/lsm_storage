@@ -38,7 +38,7 @@ export async function GET() {
         COUNT(*) AS TOTAL,
         SUM(CASE WHEN STATUS = 'PENDING' THEN 1 ELSE 0 END) AS PENDING,
         SUM(CASE WHEN STATUS = 'APPROVED' THEN 1 ELSE 0 END) AS APPROVED
-      FROM LS_USERS
+      FROM ls_users
     `
     const userBinds: Record<string, unknown> = {}
     if (isMultiTenantEnabled()) {
@@ -50,7 +50,7 @@ export async function GET() {
     )
 
     // 창고 수
-    let warehouseQuery = `SELECT COUNT(*) AS CNT FROM LS_WAREHOUSES`
+    let warehouseQuery = `SELECT COUNT(*) AS CNT FROM ls_warehouses`
     const warehouseBinds: Record<string, unknown> = {}
     if (isMultiTenantEnabled()) {
       warehouseQuery += ` WHERE COMPANY_ID = :companyId`
@@ -59,7 +59,7 @@ export async function GET() {
     const warehouseCount = await executeQuery<CountRow>(warehouseQuery, warehouseBinds)
 
     // 재고 품목 수
-    let rackQuery = `SELECT COUNT(DISTINCT ITEM_CODE) AS CNT FROM LS_MOTOR_RACK`
+    let rackQuery = `SELECT COUNT(DISTINCT ITEM_CODE) AS CNT FROM ls_motor_rack`
     const rackBinds: Record<string, unknown> = {}
     if (isMultiTenantEnabled()) {
       rackQuery += ` WHERE COMPANY_ID = :companyId`
@@ -68,7 +68,7 @@ export async function GET() {
     const itemCount = await executeQuery<CountRow>(rackQuery, rackBinds)
 
     // 총 재고 수량
-    let totalQtyQuery = `SELECT COALESCE(SUM(QTY), 0) AS CNT FROM LS_MOTOR_RACK`
+    let totalQtyQuery = `SELECT COALESCE(SUM(QTY), 0) AS CNT FROM ls_motor_rack`
     const totalQtyBinds: Record<string, unknown> = {}
     if (isMultiTenantEnabled()) {
       totalQtyQuery += ` WHERE COMPANY_ID = :companyId`

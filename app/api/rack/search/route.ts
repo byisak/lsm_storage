@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       // 멀티테넌트: 회사별 필터링
       items = await executeQuery<LsMotorRack>(
         `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK, COMPANY_ID
-         FROM LS_MOTOR_RACK
+         FROM ls_motor_rack
          WHERE UPPER(LOCATION) LIKE UPPER(:searchTerm)
            AND COMPANY_ID = :companyId
          ORDER BY LOCATION ASC`,
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       // 단일 테넌트: 기존 방식
       items = await executeQuery<LsMotorRack>(
         `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
-         FROM LS_MOTOR_RACK
+         FROM ls_motor_rack
          WHERE UPPER(LOCATION) LIKE UPPER(:searchTerm)
          ORDER BY LOCATION ASC`,
         { searchTerm }

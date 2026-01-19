@@ -192,7 +192,7 @@ export async function checkUserLimit(): Promise<LimitCheckResult> {
   }
 
   const rows = await executeQuery<CountResult>(
-    `SELECT COUNT(*) AS CNT FROM LS_USERS WHERE COMPANY_ID = :companyId AND STATUS != 'DELETED'`,
+    `SELECT COUNT(*) AS CNT FROM ls_users WHERE COMPANY_ID = :companyId AND STATUS != 'DELETED'`,
     { companyId }
   )
 
@@ -227,7 +227,7 @@ export async function checkWarehouseLimit(): Promise<LimitCheckResult> {
   }
 
   const rows = await executeQuery<CountResult>(
-    `SELECT COUNT(*) AS CNT FROM LS_WAREHOUSES WHERE COMPANY_ID = :companyId`,
+    `SELECT COUNT(*) AS CNT FROM ls_warehouses WHERE COMPANY_ID = :companyId`,
     { companyId }
   )
 
@@ -262,7 +262,7 @@ export async function checkRackLimit(): Promise<LimitCheckResult> {
   }
 
   const rows = await executeQuery<CountResult>(
-    `SELECT COUNT(*) AS CNT FROM LS_MOTOR_RACK WHERE COMPANY_ID = :companyId`,
+    `SELECT COUNT(*) AS CNT FROM ls_motor_rack WHERE COMPANY_ID = :companyId`,
     { companyId }
   )
 

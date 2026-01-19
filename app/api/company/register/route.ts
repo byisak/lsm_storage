@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // 이메일 중복 확인 (전체 시스템에서)
     const existingUser = await executeQuery(
-      `SELECT ID FROM LS_USERS WHERE EMAIL = :email`,
+      `SELECT ID FROM ls_users WHERE EMAIL = :email`,
       { email: adminEmail }
     )
 
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
       // 관리자 사용자 생성 (바로 승인 상태)
       await connection.execute(
-        `INSERT INTO LS_USERS (NAME, EMAIL, PASSWORD, ROLE, STATUS, COMPANY_ID, CREATED_AT, APPROVED_AT)
+        `INSERT INTO ls_users (NAME, EMAIL, PASSWORD, ROLE, STATUS, COMPANY_ID, CREATED_AT, APPROVED_AT)
          VALUES (:name, :email, :password, :role, :status, :companyId, :createdAt, :approvedAt)`,
         {
           name: adminName,

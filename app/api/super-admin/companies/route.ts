@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
         c.PLAN_TYPE,
         c.CREATED_AT,
         c.UPDATED_AT,
-        (SELECT COUNT(*) FROM LS_USERS u WHERE u.COMPANY_ID = c.ID) AS USER_COUNT,
-        (SELECT COUNT(*) FROM LS_WAREHOUSES w WHERE w.COMPANY_ID = c.ID) AS WAREHOUSE_COUNT
+        (SELECT COUNT(*) FROM ls_users u WHERE u.COMPANY_ID = c.ID) AS USER_COUNT,
+        (SELECT COUNT(*) FROM ls_warehouses w WHERE w.COMPANY_ID = c.ID) AS WAREHOUSE_COUNT
       FROM COMPANIES c
       WHERE 1=1
     `

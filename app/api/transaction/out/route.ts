@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     // 기존 재고 확인
     const rackRows = await executeQuery<LsMotorRack>(
       `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
-       FROM LS_MOTOR_RACK WHERE ID = :id`,
+       FROM ls_motor_rack WHERE ID = :id`,
       { id: rackId }
     )
 
@@ -58,21 +58,21 @@ export async function POST(request: NextRequest) {
       if (newQty === 0) {
         // 재고가 0이면 삭제
         await connection.execute(
-          `DELETE FROM LS_MOTOR_RACK WHERE ID = :id`,
+          `DELETE FROM ls_motor_rack WHERE ID = :id`,
           { id: rackId },
           { autoCommit: false }
         )
       } else {
         // 재고 차감
         await connection.execute(
-          `UPDATE LS_MOTOR_RACK SET NOW_QTY = :nowQty WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET NOW_QTY = :nowQty WHERE ID = :id`,
           { nowQty: newQty, id: rackId },
           { autoCommit: false }
         )
 
         const rows = await connection.query<LsMotorRack>(
           `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
-           FROM LS_MOTOR_RACK WHERE ID = :id`,
+           FROM ls_motor_rack WHERE ID = :id`,
           { id: rackId }
         )
         updatedRack = rows[0]
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       const fullRemark = remark ? `${undoMeta}|${remark}` : undoMeta
 
       await connection.execute(
-        `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+        `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
          VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
         {
           storage: rack.storage,

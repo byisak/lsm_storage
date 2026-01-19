@@ -73,12 +73,12 @@ export async function POST(request: NextRequest) {
 
     if (isMultiTenantEnabled()) {
       existingUsers = await executeQuery<LsUser>(
-        `SELECT ID FROM LS_USERS WHERE EMAIL = :email AND COMPANY_ID = :companyId`,
+        `SELECT ID FROM ls_users WHERE EMAIL = :email AND COMPANY_ID = :companyId`,
         { email: email.toLowerCase(), companyId }
       )
     } else {
       existingUsers = await executeQuery<LsUser>(
-        `SELECT ID FROM LS_USERS WHERE EMAIL = :email`,
+        `SELECT ID FROM ls_users WHERE EMAIL = :email`,
         { email: email.toLowerCase() }
       )
     }
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     // 회원 등록 (COMPANY_ID 포함)
     if (isMultiTenantEnabled()) {
       await executeInsert(
-        `INSERT INTO LS_USERS (NAME, EMAIL, PASSWORD, STATUS, ROLE, COMPANY_ID)
+        `INSERT INTO ls_users (NAME, EMAIL, PASSWORD, STATUS, ROLE, COMPANY_ID)
          VALUES (:name, :email, :password, 'PENDING', 'USER', :companyId)`,
         {
           name: name.trim(),
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       )
     } else {
       await executeInsert(
-        `INSERT INTO LS_USERS (NAME, EMAIL, PASSWORD, STATUS, ROLE)
+        `INSERT INTO ls_users (NAME, EMAIL, PASSWORD, STATUS, ROLE)
          VALUES (:name, :email, :password, 'PENDING', 'USER')`,
         {
           name: name.trim(),

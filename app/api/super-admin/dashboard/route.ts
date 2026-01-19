@@ -48,13 +48,13 @@ export async function GET() {
       // 활성 회사 수
       executeQuery<CountResult>(`SELECT COUNT(*) AS CNT FROM COMPANIES WHERE STATUS = 'ACTIVE'`),
       // 전체 사용자 수
-      executeQuery<CountResult>(`SELECT COUNT(*) AS CNT FROM LS_USERS`),
+      executeQuery<CountResult>(`SELECT COUNT(*) AS CNT FROM ls_users`),
       // 전체 창고 수
-      executeQuery<CountResult>(`SELECT COUNT(*) AS CNT FROM LS_WAREHOUSES`),
+      executeQuery<CountResult>(`SELECT COUNT(*) AS CNT FROM ls_warehouses`),
       // 전체 재고 항목 수
-      executeQuery<CountResult>(`SELECT COUNT(*) AS CNT FROM LS_MOTOR_RACK`),
+      executeQuery<CountResult>(`SELECT COUNT(*) AS CNT FROM ls_motor_rack`),
       // 전체 거래 수
-      executeQuery<CountResult>(`SELECT COUNT(*) AS CNT FROM LS_MOTOR_SUBUL`),
+      executeQuery<CountResult>(`SELECT COUNT(*) AS CNT FROM ls_motor_subul`),
       // 최근 가입 회사 (5개)
       executeQuery<RecentCompany>(
         `SELECT ID, NAME, STATUS, PLAN_TYPE, CREATED_AT

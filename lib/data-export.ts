@@ -146,7 +146,7 @@ export async function exportInventory(options: ExportOptions = {}): Promise<{
   let query = `
     SELECT r.ITEM_CODE, r.ITEM_NAME, r.QTY, r.LOCATION, r.STORAGE,
            r.REMARK, r.CREATED_DATE, r.UPDATED_DATE
-    FROM LS_MOTOR_RACK r
+    FROM ls_motor_rack r
   `
 
   const binds: Record<string, unknown> = {}
@@ -230,8 +230,8 @@ export async function exportTransactions(options: ExportOptions = {}): Promise<{
     SELECT s.SUBUL_TIME, s.SUBUL_TYPE, s.ITEM_CODE, s.ITEM_NAME, s.QTY,
            s.LOCATION, s.FROM_LOCATION, s.TO_LOCATION, s.STORAGE,
            u.NAME AS USER_NAME, s.REMARK
-    FROM LS_MOTOR_SUBUL s
-    LEFT JOIN LS_USERS u ON s.USER_ID = u.ID
+    FROM ls_motor_subul s
+    LEFT JOIN ls_users u ON s.USER_ID = u.ID
   `
 
   const binds: Record<string, unknown> = {}
@@ -336,7 +336,7 @@ export async function exportItems(options: ExportOptions = {}): Promise<{
 
   let query = `
     SELECT ITEM_CODE, ITEM_NAME, ITEM_SPEC, UNIT, CATEGORY
-    FROM LS_MOTOR_ITEM
+    FROM ls_motor_item
   `
 
   const binds: Record<string, unknown> = {}

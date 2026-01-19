@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     // 이력 조회
     const subulRows = await executeQuery<SubulRecord>(
       `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID
-       FROM LS_MOTOR_SUBUL WHERE ID = :id`,
+       FROM ls_motor_subul WHERE ID = :id`,
       { id: subulId }
     )
 
@@ -125,7 +125,7 @@ async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user:
   await withTransaction(async (connection) => {
     // 현재 해당 위치에 품목이 있는지 확인
     const existingRows = await connection.query<LsMotorRack>(
-      `SELECT ID, NOW_QTY FROM LS_MOTOR_RACK
+      `SELECT ID, NOW_QTY FROM ls_motor_rack
        WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
       { storage: subul.STORAGE, location: subul.LOCATION, itemCode: subul.ITEM_CODE }
     )
@@ -133,14 +133,14 @@ async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user:
     if (existingRows.length > 0) {
       // 기존 품목이 있으면 수량 추가
       await connection.execute(
-        `UPDATE LS_MOTOR_RACK SET NOW_QTY = NOW_QTY + :qty WHERE ID = :id`,
+        `UPDATE ls_motor_rack SET NOW_QTY = NOW_QTY + :qty WHERE ID = :id`,
         { qty: subul.QTY, id: existingRows[0].ID },
         { autoCommit: false }
       )
     } else {
       // 품목이 없으면 새로 생성 (출고로 삭제된 경우)
       await connection.execute(
-        `INSERT INTO LS_MOTOR_RACK (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
+        `INSERT INTO ls_motor_rack (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
          VALUES (:storage, :location, :itemCode, :itemName, :nowQty, :inDay, :remark)`,
         {
           storage: subul.STORAGE,
@@ -157,7 +157,7 @@ async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user:
 
     // 취소 이력 기록
     await connection.execute(
-      `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+      `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
        VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
       {
         storage: subul.STORAGE,
@@ -176,7 +176,7 @@ async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user:
     // 원본 이력에 취소 표시
     const updatedRemark = subul.REMARK?.replace('}', ',"undone":true}') || '{"undone":true}'
     await connection.execute(
-      `UPDATE LS_MOTOR_SUBUL SET REMARK = :remark WHERE ID = :id`,
+      `UPDATE ls_motor_subul SET REMARK = :remark WHERE ID = :id`,
       { remark: updatedRemark, id: subul.ID },
       { autoCommit: false }
     )
@@ -194,7 +194,7 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
 
     // 1. 목적지에서 수량 차감
     const targetRows = await connection.query<LsMotorRack>(
-      `SELECT ID, NOW_QTY FROM LS_MOTOR_RACK
+      `SELECT ID, NOW_QTY FROM ls_motor_rack
        WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
       { storage: toStorage, location: toLocation, itemCode: subul.ITEM_CODE }
     )
@@ -206,14 +206,14 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
       if (newQty <= 0) {
         // 목적지 품목 삭제
         await connection.execute(
-          `DELETE FROM LS_MOTOR_RACK WHERE ID = :id`,
+          `DELETE FROM ls_motor_rack WHERE ID = :id`,
           { id: targetRack.ID },
           { autoCommit: false }
         )
       } else {
         // 목적지 수량 감소
         await connection.execute(
-          `UPDATE LS_MOTOR_RACK SET NOW_QTY = :qty WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET NOW_QTY = :qty WHERE ID = :id`,
           { qty: newQty, id: targetRack.ID },
           { autoCommit: false }
         )
@@ -222,7 +222,7 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
 
     // 2. 출발지에 수량 복원
     const sourceRows = await connection.query<LsMotorRack>(
-      `SELECT ID, NOW_QTY FROM LS_MOTOR_RACK
+      `SELECT ID, NOW_QTY FROM ls_motor_rack
        WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
       { storage: subul.STORAGE, location: subul.LOCATION, itemCode: subul.ITEM_CODE }
     )
@@ -230,14 +230,14 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
     if (sourceRows.length > 0) {
       // 출발지에 품목이 있으면 수량 추가
       await connection.execute(
-        `UPDATE LS_MOTOR_RACK SET NOW_QTY = NOW_QTY + :qty WHERE ID = :id`,
+        `UPDATE ls_motor_rack SET NOW_QTY = NOW_QTY + :qty WHERE ID = :id`,
         { qty: subul.QTY, id: sourceRows[0].ID },
         { autoCommit: false }
       )
     } else {
       // 출발지에 품목이 없으면 새로 생성 (전체 이동으로 삭제된 경우)
       await connection.execute(
-        `INSERT INTO LS_MOTOR_RACK (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
+        `INSERT INTO ls_motor_rack (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
          VALUES (:storage, :location, :itemCode, :itemName, :nowQty, :inDay, :remark)`,
         {
           storage: subul.STORAGE,
@@ -255,7 +255,7 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
     // 3. 취소 이력 기록
     const categoryLabel = isMerge ? '이동(병합)취소' : '이동취소'
     await connection.execute(
-      `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+      `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
        VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
       {
         storage: subul.STORAGE,
@@ -274,7 +274,7 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
     // 4. 원본 이력에 취소 표시
     const updatedRemark = subul.REMARK?.replace('}', ',"undone":true}') || '{"undone":true}'
     await connection.execute(
-      `UPDATE LS_MOTOR_SUBUL SET REMARK = :remark WHERE ID = :id`,
+      `UPDATE ls_motor_subul SET REMARK = :remark WHERE ID = :id`,
       { remark: updatedRemark, id: subul.ID },
       { autoCommit: false }
     )
@@ -282,7 +282,7 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
     // 5. 이동(입) 이력도 취소 표시 (병합이 아닌 경우)
     if (!isMerge) {
       await connection.execute(
-        `UPDATE LS_MOTOR_SUBUL
+        `UPDATE ls_motor_subul
          SET REMARK = REPLACE(REMARK, '}', ',"undone":true}')
          WHERE CATEGORY = '이동(입)'
            AND STORAGE = :storage AND LOCATION = :location

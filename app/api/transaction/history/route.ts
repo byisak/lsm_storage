@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       sql = `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID
-             FROM LS_MOTOR_SUBUL WHERE COMPANY_ID = :companyId`
+             FROM ls_motor_subul WHERE COMPANY_ID = :companyId`
       binds.companyId = session.companyId
 
       if (itemCode) {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     } else {
       // 단일 테넌트: 기존 방식
       sql = `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID
-             FROM LS_MOTOR_SUBUL`
+             FROM ls_motor_subul`
 
       if (itemCode) {
         sql += ` WHERE UPPER(ITEM_CODE) LIKE UPPER(:itemCode)`

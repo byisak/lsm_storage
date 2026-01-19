@@ -35,13 +35,13 @@ export async function GET(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       racks = await executeQuery<RackLocation>(
-        `SELECT DISTINCT STORAGE, LOCATION FROM LS_MOTOR_RACK WHERE COMPANY_ID = :companyId`,
+        `SELECT DISTINCT STORAGE, LOCATION FROM ls_motor_rack WHERE COMPANY_ID = :companyId`,
         { companyId: session.companyId }
       )
     } else {
       // 단일 테넌트: 기존 방식
       racks = await executeQuery<RackLocation>(
-        `SELECT DISTINCT STORAGE, LOCATION FROM LS_MOTOR_RACK`
+        `SELECT DISTINCT STORAGE, LOCATION FROM ls_motor_rack`
       )
     }
 

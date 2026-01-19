@@ -218,11 +218,11 @@ export async function withCompanyId<T extends Record<string, unknown>>(
  *
  * @example
  * // Before
- * const sql = "SELECT * FROM LS_MOTOR_RACK WHERE LOCATION = :location"
+ * const sql = "SELECT * FROM ls_motor_rack WHERE LOCATION = :location"
  *
  * // After
- * const sql = addCompanyFilter("SELECT * FROM LS_MOTOR_RACK WHERE LOCATION = :location")
- * // Result: "SELECT * FROM LS_MOTOR_RACK WHERE LOCATION = :location AND COMPANY_ID = :companyId"
+ * const sql = addCompanyFilter("SELECT * FROM ls_motor_rack WHERE LOCATION = :location")
+ * // Result: "SELECT * FROM ls_motor_rack WHERE LOCATION = :location AND COMPANY_ID = :companyId"
  */
 export function addCompanyFilter(sql: string): string {
   // 멀티테넌트 비활성화시 원본 SQL 반환
@@ -260,9 +260,9 @@ export function addCompanyFilter(sql: string): string {
  * 멀티테넌트가 비활성화되면 원본 SQL을 그대로 반환합니다.
  *
  * @example
- * const sql = "INSERT INTO LS_MOTOR_RACK (STORAGE, LOCATION) VALUES (:storage, :location)"
+ * const sql = "INSERT INTO ls_motor_rack (STORAGE, LOCATION) VALUES (:storage, :location)"
  * const result = addCompanyToInsert(sql)
- * // Result: "INSERT INTO LS_MOTOR_RACK (STORAGE, LOCATION, COMPANY_ID) VALUES (:storage, :location, :companyId)"
+ * // Result: "INSERT INTO ls_motor_rack (STORAGE, LOCATION, COMPANY_ID) VALUES (:storage, :location, :companyId)"
  */
 export function addCompanyToInsert(sql: string): string {
   // 멀티테넌트 비활성화시 원본 SQL 반환
@@ -334,7 +334,7 @@ export async function verifyUserCompany(
   }
 
   const rows = await executeQuery<{ COMPANY_ID: string }>(
-    `SELECT COMPANY_ID FROM LS_USERS WHERE ID = :userId`,
+    `SELECT COMPANY_ID FROM ls_users WHERE ID = :userId`,
     { userId }
   )
 
@@ -494,19 +494,19 @@ export async function getCompanyStats(): Promise<CompanyStats> {
 
   const [users, warehouses, racks, items] = await Promise.all([
     executeQuery<CountRow>(
-      `SELECT COUNT(*) AS CNT FROM LS_USERS WHERE COMPANY_ID = :companyId`,
+      `SELECT COUNT(*) AS CNT FROM ls_users WHERE COMPANY_ID = :companyId`,
       { companyId }
     ),
     executeQuery<CountRow>(
-      `SELECT COUNT(*) AS CNT FROM LS_WAREHOUSES WHERE COMPANY_ID = :companyId`,
+      `SELECT COUNT(*) AS CNT FROM ls_warehouses WHERE COMPANY_ID = :companyId`,
       { companyId }
     ),
     executeQuery<CountRow>(
-      `SELECT COUNT(*) AS CNT FROM LS_MOTOR_RACK WHERE COMPANY_ID = :companyId`,
+      `SELECT COUNT(*) AS CNT FROM ls_motor_rack WHERE COMPANY_ID = :companyId`,
       { companyId }
     ),
     executeQuery<CountRow>(
-      `SELECT COUNT(*) AS CNT FROM LS_MOTOR_ITEM WHERE COMPANY_ID = :companyId`,
+      `SELECT COUNT(*) AS CNT FROM ls_motor_item WHERE COMPANY_ID = :companyId`,
       { companyId }
     ),
   ])

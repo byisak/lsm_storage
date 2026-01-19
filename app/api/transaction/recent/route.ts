@@ -30,7 +30,7 @@ export async function GET() {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       recentLocations = await executeQuery<RecentLocation>(
-        `SELECT LOCATION, STORAGE FROM LS_MOTOR_SUBUL
+        `SELECT LOCATION, STORAGE FROM ls_motor_subul
          WHERE CATEGORY = '입고' AND COMPANY_ID = :companyId
          ORDER BY SUBUL_TIME DESC
          FETCH FIRST 50 ROWS ONLY`,
@@ -38,7 +38,7 @@ export async function GET() {
       )
 
       recentItems = await executeQuery<RecentItem>(
-        `SELECT ITEM_CODE, ITEM_NAME FROM LS_MOTOR_SUBUL
+        `SELECT ITEM_CODE, ITEM_NAME FROM ls_motor_subul
          WHERE CATEGORY = '입고' AND COMPANY_ID = :companyId
          ORDER BY SUBUL_TIME DESC
          FETCH FIRST 50 ROWS ONLY`,
@@ -47,14 +47,14 @@ export async function GET() {
     } else {
       // 단일 테넌트: 기존 방식
       recentLocations = await executeQuery<RecentLocation>(
-        `SELECT LOCATION, STORAGE FROM LS_MOTOR_SUBUL
+        `SELECT LOCATION, STORAGE FROM ls_motor_subul
          WHERE CATEGORY = '입고'
          ORDER BY SUBUL_TIME DESC
          FETCH FIRST 50 ROWS ONLY`
       )
 
       recentItems = await executeQuery<RecentItem>(
-        `SELECT ITEM_CODE, ITEM_NAME FROM LS_MOTOR_SUBUL
+        `SELECT ITEM_CODE, ITEM_NAME FROM ls_motor_subul
          WHERE CATEGORY = '입고'
          ORDER BY SUBUL_TIME DESC
          FETCH FIRST 50 ROWS ONLY`

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     // 원본 재고 조회
     const sourceRows = await executeQuery<LsMotorRack>(
       `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
-       FROM LS_MOTOR_RACK WHERE ID = :id`,
+       FROM ls_motor_rack WHERE ID = :id`,
       { id: rackId }
     )
 
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // 목적지에 동일 품목이 있는지 미리 확인 (병합 확인용)
     const existingTarget = await executeQuery<LsMotorRack>(
-      `SELECT ID, NOW_QTY, ITEM_NAME FROM LS_MOTOR_RACK
+      `SELECT ID, NOW_QTY, ITEM_NAME FROM ls_motor_rack
        WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
       { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
     )
@@ -86,14 +86,14 @@ export async function POST(request: NextRequest) {
       if (qty === sourceRack.nowQty) {
         // 전체 이동이면 삭제
         await connection.execute(
-          `DELETE FROM LS_MOTOR_RACK WHERE ID = :id`,
+          `DELETE FROM ls_motor_rack WHERE ID = :id`,
           { id: rackId },
           { autoCommit: false }
         )
       } else {
         // 부분 이동이면 수량 감소
         await connection.execute(
-          `UPDATE LS_MOTOR_RACK SET NOW_QTY = :nowQty WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET NOW_QTY = :nowQty WHERE ID = :id`,
           { nowQty: sourceRack.nowQty - qty, id: rackId },
           { autoCommit: false }
         )
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 
       // 2. 목적지에 동일 품목이 있는지 확인
       const targetRows = await connection.query<LsMotorRack>(
-        `SELECT ID, NOW_QTY FROM LS_MOTOR_RACK
+        `SELECT ID, NOW_QTY FROM ls_motor_rack
          WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
         { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
       )
@@ -118,14 +118,14 @@ export async function POST(request: NextRequest) {
       if (existingTarget) {
         // 기존 재고에 수량 추가
         await connection.execute(
-          `UPDATE LS_MOTOR_RACK SET NOW_QTY = :nowQty WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET NOW_QTY = :nowQty WHERE ID = :id`,
           { nowQty: existingTarget.NOW_QTY + qty, id: existingTarget.ID },
           { autoCommit: false }
         )
       } else {
         // 새 재고 생성
         await connection.execute(
-          `INSERT INTO LS_MOTOR_RACK (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
+          `INSERT INTO ls_motor_rack (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
            VALUES (:storage, :location, :itemCode, :itemName, :nowQty, :inDay, :remark)`,
           {
             storage: toStorage,
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       let targetRackId = existingTarget ? existingTarget.ID : null
       if (!existingTarget) {
         const newTargetRows = await connection.query<{ ID: number }>(
-          `SELECT ID FROM LS_MOTOR_RACK WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
+          `SELECT ID FROM ls_motor_rack WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
           { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
         )
         if (newTargetRows.length > 0) {
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       const sourceRemark = `${sourceUndoMeta}|→ ${toLocation} (${toStorage}) [${sourceBeforeQty}개 → ${sourceAfterQty}개]`
 
       await connection.execute(
-        `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+        `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
          VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
         {
           storage: sourceRack.storage,
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
           : `${targetUndoMeta}|← ${sourceRack.location} (${sourceRack.storage}) [신규]`
 
         await connection.execute(
-          `INSERT INTO LS_MOTOR_SUBUL (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+          `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage: toStorage,
