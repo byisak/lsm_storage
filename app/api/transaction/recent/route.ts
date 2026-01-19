@@ -33,7 +33,7 @@ export async function GET() {
         `SELECT Location, storage FROM ls_motor_subul
          WHERE Category = '입고' AND COMPANY_ID = :companyId
          ORDER BY Subul_Time DESC
-         FETCH FIRST 50 ROWS ONLY`,
+         LIMIT 50`,
         { companyId: session.companyId }
       )
 
@@ -41,7 +41,7 @@ export async function GET() {
         `SELECT itemCode, itemName FROM ls_motor_subul
          WHERE Category = '입고' AND COMPANY_ID = :companyId
          ORDER BY Subul_Time DESC
-         FETCH FIRST 50 ROWS ONLY`,
+         LIMIT 50`,
         { companyId: session.companyId }
       )
     } else {
@@ -50,14 +50,14 @@ export async function GET() {
         `SELECT Location, storage FROM ls_motor_subul
          WHERE Category = '입고'
          ORDER BY Subul_Time DESC
-         FETCH FIRST 50 ROWS ONLY`
+         LIMIT 50`
       )
 
       recentItems = await executeQuery<RecentItem>(
         `SELECT itemCode, itemName FROM ls_motor_subul
          WHERE Category = '입고'
          ORDER BY Subul_Time DESC
-         FETCH FIRST 50 ROWS ONLY`
+         LIMIT 50`
       )
     }
 

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
-      sql = `SELECT ID, storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user
+      sql = `SELECT idx, storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user
              FROM ls_motor_subul WHERE COMPANY_ID = :companyId`
       binds.companyId = session.companyId
 
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       }
     } else {
       // 단일 테넌트: 기존 방식
-      sql = `SELECT ID, storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user
+      sql = `SELECT idx, storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user
              FROM ls_motor_subul`
 
       if (itemCode) {
@@ -42,14 +42,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    sql += ` ORDER BY Subul_Time DESC FETCH FIRST :limit ROWS ONLY`
-    binds.limit = limit
+    // MySQL uses LIMIT (not FETCH FIRST)
+    sql += ` ORDER BY Subul_Time DESC LIMIT ${Math.min(Math.max(1, limit), 1000)}`
 
     const items = await executeQuery<LsMotorSubul>(sql, binds)
 
     // camelCase로 변환
     const formattedItems = items.map(item => ({
-      id: item.ID,
+      id: item.idx,
       storage: item.storage,
       location: item.Location,
       itemCode: item.itemCode,
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       qty: item.Qty,
       category: item.Category,
       subulTime: item.Subul_Time,
-      remark: item.remark,
+      remark: item.Remark,
       user: item.user,
     }))
 

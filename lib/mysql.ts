@@ -139,13 +139,8 @@ function wrapClientForTransaction(conn: PoolConnection): TransactionClient {
     async query<T>(sql: string, binds: Record<string, unknown> = {}): Promise<T[]> {
       const { sql: convertedSql, values } = convertBinds(sql, binds)
       const [rows] = await conn.query<RowDataPacket[]>(convertedSql, values)
-      return rows.map((row) => {
-        const upperRow: Record<string, unknown> = {}
-        for (const [key, value] of Object.entries(row)) {
-          upperRow[key.toUpperCase()] = value
-        }
-        return upperRow as T
-      })
+      // 원본 컬럼명 유지 (LSM_Warehouse_3D 호환)
+      return rows as T[]
     }
   }
 }
@@ -182,18 +177,18 @@ export async function closePool(): Promise<void> {
 // ============================================================
 
 export interface LsMotorRack {
-  ID: number
+  idx: number
   storage: string
   Location: string
   itemCode: string
   itemName: string
   Now_Qty: number
   In_day: Date | null
-  remark: string | null
+  Remark: string | null
 }
 
 export interface LsMotorSubul {
-  ID: number
+  idx: number
   storage: string
   Location: string
   itemCode: string
@@ -201,7 +196,7 @@ export interface LsMotorSubul {
   Qty: number
   Category: string
   Subul_Time: Date
-  remark: string | null
+  Remark: string | null
   user: string
 }
 

@@ -60,7 +60,7 @@ export async function GET() {
         `SELECT ID, NAME, STATUS, PLAN_TYPE, CREATED_AT
          FROM COMPANIES
          ORDER BY CREATED_AT DESC
-         FETCH FIRST 5 ROWS ONLY`
+         LIMIT 5`
       ),
       // 요금제별 회사 수
       executeQuery<PlanStats>(
