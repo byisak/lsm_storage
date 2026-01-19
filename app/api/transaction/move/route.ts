@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     // 원본 재고 조회
     const sourceRows = await executeQuery<LsMotorRack>(
-      `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+      `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
        FROM ls_motor_rack WHERE ID = :id`,
       { id: rackId }
     )
@@ -30,13 +30,13 @@ export async function POST(request: NextRequest) {
 
     const sourceRack = {
       id: sourceRows[0].ID,
-      storage: sourceRows[0].STORAGE,
-      location: sourceRows[0].LOCATION,
-      itemCode: sourceRows[0].ITEM_CODE,
-      itemName: sourceRows[0].ITEM_NAME,
-      nowQty: sourceRows[0].NOW_QTY,
-      inDay: sourceRows[0].IN_DAY,
-      remark: sourceRows[0].REMARK,
+      storage: sourceRows[0].storage,
+      location: sourceRows[0].Location,
+      itemCode: sourceRows[0].itemCode,
+      itemName: sourceRows[0].itemName,
+      nowQty: sourceRows[0].Now_Qty,
+      inDay: sourceRows[0].In_day,
+      remark: sourceRows[0].remark,
     }
 
     if (qty > sourceRack.nowQty) {
@@ -56,8 +56,8 @@ export async function POST(request: NextRequest) {
 
     // 목적지에 동일 품목이 있는지 미리 확인 (병합 확인용)
     const existingTarget = await executeQuery<LsMotorRack>(
-      `SELECT ID, NOW_QTY, ITEM_NAME FROM ls_motor_rack
-       WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
+      `SELECT ID, Now_Qty, itemName FROM ls_motor_rack
+       WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
       { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
     )
 
@@ -70,11 +70,11 @@ export async function POST(request: NextRequest) {
         message: '이동 위치에 동일한 품목이 이미 존재합니다. 수량을 병합하시겠습니까?',
         existingItem: {
           id: targetItem.ID,
-          currentQty: targetItem.NOW_QTY,
-          itemName: targetItem.ITEM_NAME,
+          currentQty: targetItem.Now_Qty,
+          itemName: targetItem.itemName,
         },
         moveQty: qty,
-        mergedQty: targetItem.NOW_QTY + qty,
+        mergedQty: targetItem.Now_Qty + qty,
       })
     }
 
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       } else {
         // 부분 이동이면 수량 감소
         await connection.execute(
-          `UPDATE ls_motor_rack SET NOW_QTY = :nowQty WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET Now_Qty = :nowQty WHERE ID = :id`,
           { nowQty: sourceRack.nowQty - qty, id: rackId },
           { autoCommit: false }
         )
@@ -101,8 +101,8 @@ export async function POST(request: NextRequest) {
 
       // 2. 목적지에 동일 품목이 있는지 확인
       const targetRows = await connection.query<LsMotorRack>(
-        `SELECT ID, NOW_QTY FROM ls_motor_rack
-         WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
+        `SELECT ID, Now_Qty FROM ls_motor_rack
+         WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
         { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
       )
       const existingTarget = targetRows.length > 0 ? targetRows[0] : null
@@ -112,20 +112,20 @@ export async function POST(request: NextRequest) {
       const sourceAfterQty = sourceRack.nowQty - qty
 
       // 목적지 수량 변경 정보
-      const targetBeforeQty = existingTarget ? existingTarget.NOW_QTY : 0
+      const targetBeforeQty = existingTarget ? existingTarget.Now_Qty : 0
       const targetAfterQty = targetBeforeQty + qty
 
       if (existingTarget) {
         // 기존 재고에 수량 추가
         await connection.execute(
-          `UPDATE ls_motor_rack SET NOW_QTY = :nowQty WHERE ID = :id`,
-          { nowQty: existingTarget.NOW_QTY + qty, id: existingTarget.ID },
+          `UPDATE ls_motor_rack SET Now_Qty = :nowQty WHERE ID = :id`,
+          { nowQty: existingTarget.Now_Qty + qty, id: existingTarget.ID },
           { autoCommit: false }
         )
       } else {
         // 새 재고 생성
         await connection.execute(
-          `INSERT INTO ls_motor_rack (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
+          `INSERT INTO ls_motor_rack (storage, Location, itemCode, itemName, Now_Qty, In_day, remark)
            VALUES (:storage, :location, :itemCode, :itemName, :nowQty, :inDay, :remark)`,
           {
             storage: toStorage,
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       let targetRackId = existingTarget ? existingTarget.ID : null
       if (!existingTarget) {
         const newTargetRows = await connection.query<{ ID: number }>(
-          `SELECT ID FROM ls_motor_rack WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
+          `SELECT ID FROM ls_motor_rack WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
           { storage: toStorage, location: toLocation, itemCode: sourceRack.itemCode }
         )
         if (newTargetRows.length > 0) {
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       const sourceRemark = `${sourceUndoMeta}|→ ${toLocation} (${toStorage}) [${sourceBeforeQty}개 → ${sourceAfterQty}개]`
 
       await connection.execute(
-        `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+        `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
          VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
         {
           storage: sourceRack.storage,
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
           : `${targetUndoMeta}|← ${sourceRack.location} (${sourceRack.storage}) [신규]`
 
         await connection.execute(
-          `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+          `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage: toStorage,

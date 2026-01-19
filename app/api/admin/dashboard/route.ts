@@ -9,10 +9,10 @@ interface CountRow {
 }
 
 interface RecentActivityRow {
-  SUBUL_TIME: Date
+  Subul_Time: Date
   SUBUL_TYPE: string
-  ITEM_NAME: string
-  QTY: number
+  itemName: string
+  Qty: number
   USER_NAME: string
 }
 
@@ -59,7 +59,7 @@ export async function GET() {
     const warehouseCount = await executeQuery<CountRow>(warehouseQuery, warehouseBinds)
 
     // 재고 품목 수
-    let rackQuery = `SELECT COUNT(DISTINCT ITEM_CODE) AS CNT FROM ls_motor_rack`
+    let rackQuery = `SELECT COUNT(DISTINCT itemCode) AS CNT FROM ls_motor_rack`
     const rackBinds: Record<string, unknown> = {}
     if (isMultiTenantEnabled()) {
       rackQuery += ` WHERE COMPANY_ID = :companyId`
@@ -68,7 +68,7 @@ export async function GET() {
     const itemCount = await executeQuery<CountRow>(rackQuery, rackBinds)
 
     // 총 재고 수량
-    let totalQtyQuery = `SELECT COALESCE(SUM(QTY), 0) AS CNT FROM ls_motor_rack`
+    let totalQtyQuery = `SELECT COALESCE(SUM(Qty), 0) AS CNT FROM ls_motor_rack`
     const totalQtyBinds: Record<string, unknown> = {}
     if (isMultiTenantEnabled()) {
       totalQtyQuery += ` WHERE COMPANY_ID = :companyId`
@@ -151,10 +151,10 @@ export async function GET() {
           monthTransactions: monthTrans[0]?.CNT || 0,
         },
         recentActivity: recentActivity.map((r) => ({
-          time: r.SUBUL_TIME,
+          time: r.Subul_Time,
           type: r.SUBUL_TYPE,
-          itemName: r.ITEM_NAME,
-          qty: r.QTY,
+          itemName: r.itemName,
+          qty: r.Qty,
           userName: r.USER_NAME || '알 수 없음',
         })),
       },

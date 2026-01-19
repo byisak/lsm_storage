@@ -7,13 +7,13 @@ import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 function formatItems(items: LsMotorRack[]) {
   return items.map(item => ({
     id: item.ID,
-    storage: item.STORAGE,
-    location: item.LOCATION,
-    itemCode: item.ITEM_CODE,
-    itemName: item.ITEM_NAME,
-    nowQty: item.NOW_QTY,
-    inDay: item.IN_DAY,
-    remark: item.REMARK,
+    storage: item.storage,
+    location: item.Location,
+    itemCode: item.itemCode,
+    itemName: item.itemName,
+    nowQty: item.Now_Qty,
+    inDay: item.In_day,
+    remark: item.remark,
   }))
 }
 
@@ -49,19 +49,19 @@ export async function POST(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK, COMPANY_ID
+        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark, COMPANY_ID
          FROM ls_motor_rack
-         WHERE STORAGE = :storage AND LOCATION = :location AND COMPANY_ID = :companyId
-         ORDER BY IN_DAY DESC NULLS LAST`,
+         WHERE storage = :storage AND Location = :location AND COMPANY_ID = :companyId
+         ORDER BY In_day DESC NULLS LAST`,
         { storage: storageVal, location: locationVal, companyId: session.companyId }
       )
     } else {
       // 단일 테넌트: 기존 방식
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
          FROM ls_motor_rack
-         WHERE STORAGE = :storage AND LOCATION = :location
-         ORDER BY IN_DAY DESC NULLS LAST`,
+         WHERE storage = :storage AND Location = :location
+         ORDER BY In_day DESC NULLS LAST`,
         { storage: storageVal, location: locationVal }
       )
     }
@@ -123,19 +123,19 @@ export async function GET(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK, COMPANY_ID
+        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark, COMPANY_ID
          FROM ls_motor_rack
-         WHERE STORAGE = :storage AND LOCATION = :location AND COMPANY_ID = :companyId
-         ORDER BY IN_DAY DESC NULLS LAST`,
+         WHERE storage = :storage AND Location = :location AND COMPANY_ID = :companyId
+         ORDER BY In_day DESC NULLS LAST`,
         { storage: storageVal, location: locationVal, companyId: session.companyId }
       )
     } else {
       // 단일 테넌트: 기존 방식
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
          FROM ls_motor_rack
-         WHERE STORAGE = :storage AND LOCATION = :location
-         ORDER BY IN_DAY DESC NULLS LAST`,
+         WHERE storage = :storage AND Location = :location
+         ORDER BY In_day DESC NULLS LAST`,
         { storage: storageVal, location: locationVal }
       )
     }

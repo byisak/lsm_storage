@@ -31,14 +31,14 @@ export async function POST(request: NextRequest) {
 
     if (isMultiTenantEnabled()) {
       existing = await executeQuery<LsMotorRack>(
-        `SELECT ID, NOW_QTY, ITEM_NAME FROM ls_motor_rack
-         WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode AND COMPANY_ID = :companyId`,
+        `SELECT ID, Now_Qty, itemName FROM ls_motor_rack
+         WHERE storage = :storage AND Location = :location AND itemCode = :itemCode AND COMPANY_ID = :companyId`,
         { storage, location, itemCode, companyId: session.companyId }
       )
     } else {
       existing = await executeQuery<LsMotorRack>(
-        `SELECT ID, NOW_QTY, ITEM_NAME FROM ls_motor_rack
-         WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
+        `SELECT ID, Now_Qty, itemName FROM ls_motor_rack
+         WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
         { storage, location, itemCode }
       )
     }
@@ -54,30 +54,30 @@ export async function POST(request: NextRequest) {
           message: '이미 해당 위치에 같은 품목이 존재합니다. 수량을 병합하시겠습니까?',
           existingItem: {
             id: existingItem.ID,
-            currentQty: existingItem.NOW_QTY,
-            itemName: existingItem.ITEM_NAME,
+            currentQty: existingItem.Now_Qty,
+            itemName: existingItem.itemName,
           },
           newQty: qty,
-          mergedQty: existingItem.NOW_QTY + qty,
+          mergedQty: existingItem.Now_Qty + qty,
         })
       }
 
       // merge=true면 수량 병합 처리
       const now = new Date()
-      const beforeQty = existingItem.NOW_QTY
+      const beforeQty = existingItem.Now_Qty
       const afterQty = beforeQty + qty
 
       await withTransaction(async (connection) => {
         // 기존 재고 수량 업데이트
         await connection.execute(
-          `UPDATE ls_motor_rack SET NOW_QTY = :nowQty WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET Now_Qty = :nowQty WHERE ID = :id`,
           { nowQty: afterQty, id: existingItem.ID },
           { autoCommit: false }
         )
 
         // 수불 이력 추가 (병합)
         await connection.execute(
-          `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+          `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage,
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     const result = await withTransaction(async (connection) => {
       // 랙에 입고
       await connection.execute(
-        `INSERT INTO ls_motor_rack (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK)
+        `INSERT INTO ls_motor_rack (storage, Location, itemCode, itemName, Now_Qty, In_day, remark)
          VALUES (:storage, :location, :itemCode, :itemName, :nowQty, :inDay, :remark)`,
         {
           storage,
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
 
       // 수불 이력 추가
       await connection.execute(
-        `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+        `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
          VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
         {
           storage,
@@ -149,9 +149,9 @@ export async function POST(request: NextRequest) {
 
       // 방금 입고된 재고 조회
       const rows = await connection.query<LsMotorRack>(
-        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
          FROM ls_motor_rack
-         WHERE STORAGE = :storage AND LOCATION = :location AND ITEM_CODE = :itemCode`,
+         WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
         { storage, location, itemCode }
       )
 
@@ -163,13 +163,13 @@ export async function POST(request: NextRequest) {
       message: '입고가 완료되었습니다.',
       data: result ? {
         id: result.ID,
-        storage: result.STORAGE,
-        location: result.LOCATION,
-        itemCode: result.ITEM_CODE,
-        itemName: result.ITEM_NAME,
-        nowQty: result.NOW_QTY,
-        inDay: result.IN_DAY,
-        remark: result.REMARK,
+        storage: result.storage,
+        location: result.Location,
+        itemCode: result.itemCode,
+        itemName: result.itemName,
+        nowQty: result.Now_Qty,
+        inDay: result.In_day,
+        remark: result.remark,
       } : null,
     })
   } catch (error) {

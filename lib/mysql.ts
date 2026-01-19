@@ -189,33 +189,33 @@ export async function closePool(): Promise<void> {
 
 export interface LsMotorRack {
   ID: number
-  STORAGE: string
-  LOCATION: string
-  ITEM_CODE: string
-  ITEM_NAME: string
-  NOW_QTY: number
-  IN_DAY: Date | null
-  REMARK: string | null
+  storage: string
+  Location: string
+  itemCode: string
+  itemName: string
+  Now_Qty: number
+  In_day: Date | null
+  remark: string | null
 }
 
 export interface LsMotorSubul {
   ID: number
-  STORAGE: string
-  LOCATION: string
-  ITEM_CODE: string
-  ITEM_NAME: string
-  QTY: number
-  CATEGORY: string
-  SUBUL_TIME: Date
-  REMARK: string | null
-  USER_ID: string
+  storage: string
+  Location: string
+  itemCode: string
+  itemName: string
+  Qty: number
+  Category: string
+  Subul_Time: Date
+  remark: string | null
+  user: string
 }
 
 export interface LsMotorItem {
   IDX: number
-  STORAGE: string
-  ITEM_CODE: string
-  ITEM_NAME: string
+  storage: string
+  itemCode: string
+  itemName: string
   ERP_RESERVATION: number
   ERP_INVENTORY10: number
   ERP_INVENTORY11: number

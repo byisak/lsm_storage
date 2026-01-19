@@ -278,7 +278,7 @@ export async function logSettingsChange(
 interface AuditLogRow {
   ID: number
   COMPANY_ID: string
-  USER_ID: number
+  user: number
   USER_NAME: string
   USER_EMAIL: string
   ACTION: string
@@ -321,7 +321,7 @@ export async function getAuditLogs(filter: AuditLogFilter = {}): Promise<{
 
   // 추가 필터
   if (filter.userId) {
-    conditions.push('USER_ID = :userId')
+    conditions.push('user = :userId')
     binds.userId = filter.userId
   }
 
@@ -377,7 +377,7 @@ export async function getAuditLogs(filter: AuditLogFilter = {}): Promise<{
   const logs: AuditLogEntry[] = rows.map((row) => ({
     id: row.ID,
     companyId: row.COMPANY_ID,
-    userId: row.USER_ID,
+    userId: row.user,
     userName: row.USER_NAME,
     userEmail: row.USER_EMAIL,
     action: row.ACTION as AuditAction,
@@ -416,7 +416,7 @@ export async function getAllAuditLogs(filter: Omit<AuditLogFilter, 'companyId'> 
 
   // 추가 필터
   if (filter.userId) {
-    conditions.push('USER_ID = :userId')
+    conditions.push('user = :userId')
     binds.userId = filter.userId
   }
 
@@ -472,7 +472,7 @@ export async function getAllAuditLogs(filter: Omit<AuditLogFilter, 'companyId'> 
   const logs: AuditLogEntry[] = rows.map((row) => ({
     id: row.ID,
     companyId: row.COMPANY_ID,
-    userId: row.USER_ID,
+    userId: row.user,
     userName: row.USER_NAME,
     userEmail: row.USER_EMAIL,
     action: row.ACTION as AuditAction,

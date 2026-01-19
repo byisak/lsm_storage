@@ -30,20 +30,20 @@ export async function GET(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK, COMPANY_ID
+        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark, COMPANY_ID
          FROM ls_motor_rack
-         WHERE UPPER(LOCATION) LIKE UPPER(:searchTerm)
+         WHERE UPPER(Location) LIKE UPPER(:searchTerm)
            AND COMPANY_ID = :companyId
-         ORDER BY LOCATION ASC`,
+         ORDER BY Location ASC`,
         { searchTerm, companyId: session.companyId }
       )
     } else {
       // 단일 테넌트: 기존 방식
       items = await executeQuery<LsMotorRack>(
-        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
          FROM ls_motor_rack
-         WHERE UPPER(LOCATION) LIKE UPPER(:searchTerm)
-         ORDER BY LOCATION ASC`,
+         WHERE UPPER(Location) LIKE UPPER(:searchTerm)
+         ORDER BY Location ASC`,
         { searchTerm }
       )
     }
@@ -51,13 +51,13 @@ export async function GET(request: NextRequest) {
     // 컬럼명을 camelCase로 변환
     const formattedItems = items.map(item => ({
       id: item.ID,
-      storage: item.STORAGE,
-      location: item.LOCATION,
-      itemCode: item.ITEM_CODE,
-      itemName: item.ITEM_NAME,
-      nowQty: item.NOW_QTY,
-      inDay: item.IN_DAY,
-      remark: item.REMARK,
+      storage: item.storage,
+      location: item.Location,
+      itemCode: item.itemCode,
+      itemName: item.itemName,
+      nowQty: item.Now_Qty,
+      inDay: item.In_day,
+      remark: item.remark,
     }))
 
     return NextResponse.json({

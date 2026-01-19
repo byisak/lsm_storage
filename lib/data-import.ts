@@ -190,8 +190,8 @@ export async function importItems(
       // 중복 확인
       const existing = await executeQuery<{ CNT: number }>(
         isMultiTenantEnabled()
-          ? `SELECT COUNT(*) AS CNT FROM ls_motor_item WHERE ITEM_CODE = :itemCode AND COMPANY_ID = :companyId`
-          : `SELECT COUNT(*) AS CNT FROM ls_motor_item WHERE ITEM_CODE = :itemCode`,
+          ? `SELECT COUNT(*) AS CNT FROM ls_motor_item WHERE itemCode = :itemCode AND COMPANY_ID = :companyId`
+          : `SELECT COUNT(*) AS CNT FROM ls_motor_item WHERE itemCode = :itemCode`,
         isMultiTenantEnabled() ? { itemCode: item.itemCode, companyId } : { itemCode: item.itemCode }
       )
 
@@ -200,8 +200,8 @@ export async function importItems(
           // 기존 항목 업데이트
           await executeUpdate(
             isMultiTenantEnabled()
-              ? `UPDATE ls_motor_item SET ITEM_NAME = :itemName, ITEM_SPEC = :itemSpec, UNIT = :unit, CATEGORY = :category WHERE ITEM_CODE = :itemCode AND COMPANY_ID = :companyId`
-              : `UPDATE ls_motor_item SET ITEM_NAME = :itemName, ITEM_SPEC = :itemSpec, UNIT = :unit, CATEGORY = :category WHERE ITEM_CODE = :itemCode`,
+              ? `UPDATE ls_motor_item SET itemName = :itemName, ITEM_SPEC = :itemSpec, UNIT = :unit, Category = :category WHERE itemCode = :itemCode AND COMPANY_ID = :companyId`
+              : `UPDATE ls_motor_item SET itemName = :itemName, ITEM_SPEC = :itemSpec, UNIT = :unit, Category = :category WHERE itemCode = :itemCode`,
             isMultiTenantEnabled()
               ? { ...item, companyId }
               : item
@@ -224,8 +224,8 @@ export async function importItems(
       // 새 품목 추가
       await executeInsert(
         isMultiTenantEnabled()
-          ? `INSERT INTO ls_motor_item (ITEM_CODE, ITEM_NAME, ITEM_SPEC, UNIT, CATEGORY, COMPANY_ID) VALUES (:itemCode, :itemName, :itemSpec, :unit, :category, :companyId)`
-          : `INSERT INTO ls_motor_item (ITEM_CODE, ITEM_NAME, ITEM_SPEC, UNIT, CATEGORY) VALUES (:itemCode, :itemName, :itemSpec, :unit, :category)`,
+          ? `INSERT INTO ls_motor_item (itemCode, itemName, ITEM_SPEC, UNIT, Category, COMPANY_ID) VALUES (:itemCode, :itemName, :itemSpec, :unit, :category, :companyId)`
+          : `INSERT INTO ls_motor_item (itemCode, itemName, ITEM_SPEC, UNIT, Category) VALUES (:itemCode, :itemName, :itemSpec, :unit, :category)`,
         isMultiTenantEnabled()
           ? {
               itemCode: item.itemCode,
@@ -356,20 +356,20 @@ export async function importInventory(
       // 품목 마스터에서 품목명 가져오기
       let itemName = item.itemName
       if (!itemName) {
-        const itemMaster = await executeQuery<{ ITEM_NAME: string }>(
+        const itemMaster = await executeQuery<{ itemName: string }>(
           isMultiTenantEnabled()
-            ? `SELECT ITEM_NAME FROM ls_motor_item WHERE ITEM_CODE = :itemCode AND COMPANY_ID = :companyId`
-            : `SELECT ITEM_NAME FROM ls_motor_item WHERE ITEM_CODE = :itemCode`,
+            ? `SELECT itemName FROM ls_motor_item WHERE itemCode = :itemCode AND COMPANY_ID = :companyId`
+            : `SELECT itemName FROM ls_motor_item WHERE itemCode = :itemCode`,
           isMultiTenantEnabled() ? { itemCode: item.itemCode, companyId } : { itemCode: item.itemCode }
         )
-        itemName = itemMaster[0]?.ITEM_NAME || item.itemCode
+        itemName = itemMaster[0]?.itemName || item.itemCode
       }
 
       // 중복 확인 (같은 위치에 같은 품목)
       const existing = await executeQuery<{ SEQ: number }>(
         isMultiTenantEnabled()
-          ? `SELECT SEQ FROM ls_motor_rack WHERE ITEM_CODE = :itemCode AND LOCATION = :location AND STORAGE = :storage AND COMPANY_ID = :companyId`
-          : `SELECT SEQ FROM ls_motor_rack WHERE ITEM_CODE = :itemCode AND LOCATION = :location AND STORAGE = :storage`,
+          ? `SELECT SEQ FROM ls_motor_rack WHERE itemCode = :itemCode AND Location = :location AND storage = :storage AND COMPANY_ID = :companyId`
+          : `SELECT SEQ FROM ls_motor_rack WHERE itemCode = :itemCode AND Location = :location AND storage = :storage`,
         isMultiTenantEnabled()
           ? { itemCode: item.itemCode, location: item.location, storage: item.storage, companyId }
           : { itemCode: item.itemCode, location: item.location, storage: item.storage }
@@ -379,7 +379,7 @@ export async function importInventory(
         if (options.updateExisting) {
           // 기존 재고 업데이트
           await executeUpdate(
-            `UPDATE ls_motor_rack SET QTY = :qty, ITEM_NAME = :itemName, REMARK = :remark, UPDATED_DATE = CURRENT_TIMESTAMP WHERE SEQ = :seq`,
+            `UPDATE ls_motor_rack SET Qty = :qty, itemName = :itemName, remark = :remark, UPDATED_DATE = CURRENT_TIMESTAMP WHERE SEQ = :seq`,
             {
               qty,
               itemName,
@@ -408,8 +408,8 @@ export async function importInventory(
 
       await executeInsert(
         isMultiTenantEnabled()
-          ? `INSERT INTO ls_motor_rack (SEQ, ITEM_CODE, ITEM_NAME, QTY, LOCATION, STORAGE, REMARK, COMPANY_ID, CREATED_DATE, UPDATED_DATE) VALUES (:seq, :itemCode, :itemName, :qty, :location, :storage, :remark, :companyId, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-          : `INSERT INTO ls_motor_rack (SEQ, ITEM_CODE, ITEM_NAME, QTY, LOCATION, STORAGE, REMARK, CREATED_DATE, UPDATED_DATE) VALUES (:seq, :itemCode, :itemName, :qty, :location, :storage, :remark, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          ? `INSERT INTO ls_motor_rack (SEQ, itemCode, itemName, Qty, Location, storage, remark, COMPANY_ID, CREATED_DATE, UPDATED_DATE) VALUES (:seq, :itemCode, :itemName, :qty, :location, :storage, :remark, :companyId, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+          : `INSERT INTO ls_motor_rack (SEQ, itemCode, itemName, Qty, Location, storage, remark, CREATED_DATE, UPDATED_DATE) VALUES (:seq, :itemCode, :itemName, :qty, :location, :storage, :remark, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         isMultiTenantEnabled()
           ? {
               seq: nextSeq,

@@ -4,7 +4,7 @@ export interface WarehouseConfig {
   name: string
 }
 
-const STORAGE_KEY = 'warehouse-config'
+const storage_KEY = 'warehouse-config'
 
 // 기본 창고 설정
 const DEFAULT_WAREHOUSES: WarehouseConfig[] = [
@@ -16,7 +16,7 @@ const DEFAULT_WAREHOUSES: WarehouseConfig[] = [
 export function getWarehouses(): WarehouseConfig[] {
   if (typeof window === 'undefined') return DEFAULT_WAREHOUSES
 
-  const stored = localStorage.getItem(STORAGE_KEY)
+  const stored = localStorage.getItem(storage_KEY)
   if (!stored) return DEFAULT_WAREHOUSES
 
   try {
@@ -28,7 +28,7 @@ export function getWarehouses(): WarehouseConfig[] {
 
 export function saveWarehouses(warehouses: WarehouseConfig[]): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(warehouses))
+  localStorage.setItem(storage_KEY, JSON.stringify(warehouses))
 }
 
 export function getWarehouseName(id: string): string {

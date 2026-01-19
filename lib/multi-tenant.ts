@@ -218,11 +218,11 @@ export async function withCompanyId<T extends Record<string, unknown>>(
  *
  * @example
  * // Before
- * const sql = "SELECT * FROM ls_motor_rack WHERE LOCATION = :location"
+ * const sql = "SELECT * FROM ls_motor_rack WHERE Location = :location"
  *
  * // After
- * const sql = addCompanyFilter("SELECT * FROM ls_motor_rack WHERE LOCATION = :location")
- * // Result: "SELECT * FROM ls_motor_rack WHERE LOCATION = :location AND COMPANY_ID = :companyId"
+ * const sql = addCompanyFilter("SELECT * FROM ls_motor_rack WHERE Location = :location")
+ * // Result: "SELECT * FROM ls_motor_rack WHERE Location = :location AND COMPANY_ID = :companyId"
  */
 export function addCompanyFilter(sql: string): string {
   // 멀티테넌트 비활성화시 원본 SQL 반환
@@ -260,9 +260,9 @@ export function addCompanyFilter(sql: string): string {
  * 멀티테넌트가 비활성화되면 원본 SQL을 그대로 반환합니다.
  *
  * @example
- * const sql = "INSERT INTO ls_motor_rack (STORAGE, LOCATION) VALUES (:storage, :location)"
+ * const sql = "INSERT INTO ls_motor_rack (storage, Location) VALUES (:storage, :location)"
  * const result = addCompanyToInsert(sql)
- * // Result: "INSERT INTO ls_motor_rack (STORAGE, LOCATION, COMPANY_ID) VALUES (:storage, :location, :companyId)"
+ * // Result: "INSERT INTO ls_motor_rack (storage, Location, COMPANY_ID) VALUES (:storage, :location, :companyId)"
  */
 export function addCompanyToInsert(sql: string): string {
   // 멀티테넌트 비활성화시 원본 SQL 반환

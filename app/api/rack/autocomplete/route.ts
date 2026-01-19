@@ -5,8 +5,8 @@ import { getSession } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 
 interface RackLocation {
-  STORAGE: string
-  LOCATION: string
+  storage: string
+  Location: string
 }
 
 export async function GET(request: NextRequest) {
@@ -35,26 +35,26 @@ export async function GET(request: NextRequest) {
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       racks = await executeQuery<RackLocation>(
-        `SELECT DISTINCT STORAGE, LOCATION FROM ls_motor_rack WHERE COMPANY_ID = :companyId`,
+        `SELECT DISTINCT storage, Location FROM ls_motor_rack WHERE COMPANY_ID = :companyId`,
         { companyId: session.companyId }
       )
     } else {
       // 단일 테넌트: 기존 방식
       racks = await executeQuery<RackLocation>(
-        `SELECT DISTINCT STORAGE, LOCATION FROM ls_motor_rack`
+        `SELECT DISTINCT storage, Location FROM ls_motor_rack`
       )
     }
 
     // 검색어로 필터링
     const searchUpper = expanded.toUpperCase()
     const filtered = racks.filter(rack =>
-      rack.LOCATION.toUpperCase().includes(searchUpper)
+      rack.Location.toUpperCase().includes(searchUpper)
     )
 
     // 위치별로 그룹화하고 정렬
     const uniqueLocations = [...new Set(filtered.map(r => ({
-      location: r.LOCATION,
-      storage: r.STORAGE
+      location: r.Location,
+      storage: r.storage
     })))]
 
     // 최대 10개만 반환

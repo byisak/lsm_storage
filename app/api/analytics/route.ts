@@ -9,27 +9,27 @@ interface DailyTransactionRow {
   IN_COUNT: number
   OUT_COUNT: number
   MOVE_COUNT: number
-  IN_QTY: number
-  OUT_QTY: number
+  IN_Qty: number
+  OUT_Qty: number
 }
 
 interface TopItemRow {
-  ITEM_CODE: string
-  ITEM_NAME: string
-  IN_QTY: number
-  OUT_QTY: number
-  TOTAL_QTY: number
+  itemCode: string
+  itemName: string
+  IN_Qty: number
+  OUT_Qty: number
+  TOTAL_Qty: number
 }
 
 interface WarehouseStatsRow {
-  STORAGE: string
+  storage: string
   ITEM_COUNT: number
-  TOTAL_QTY: number
-  LOCATIONS: number
+  TOTAL_Qty: number
+  LocationS: number
 }
 
 interface ActivityRow {
-  USER_ID: number
+  user: number
   USER_NAME: string
   TRANS_COUNT: number
   LAST_ACTIVITY: Date
@@ -65,14 +65,14 @@ export async function GET(request: NextRequest) {
     // 일별 거래 통계
     let dailyQuery = `
       SELECT
-        TO_CHAR(SUBUL_TIME, 'YYYY-MM-DD') AS TRANS_DATE,
+        TO_CHAR(Subul_Time, 'YYYY-MM-DD') AS TRANS_DATE,
         SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN 1 ELSE 0 END) AS IN_COUNT,
         SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN 1 ELSE 0 END) AS OUT_COUNT,
         SUM(CASE WHEN SUBUL_TYPE = 'MOVE' THEN 1 ELSE 0 END) AS MOVE_COUNT,
-        SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN QTY ELSE 0 END) AS IN_QTY,
-        SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN QTY ELSE 0 END) AS OUT_QTY
+        SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN Qty ELSE 0 END) AS IN_Qty,
+        SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN Qty ELSE 0 END) AS OUT_Qty
       FROM ls_motor_subul
-      WHERE SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
+      WHERE Subul_Time >= NOW() - INTERVAL '1 day' * :days
     `
 
     const dailyBinds: Record<string, unknown> = { days }
@@ -83,24 +83,24 @@ export async function GET(request: NextRequest) {
     }
 
     if (warehouseId) {
-      dailyQuery += ` AND STORAGE = :warehouseId`
+      dailyQuery += ` AND storage = :warehouseId`
       dailyBinds.warehouseId = warehouseId
     }
 
-    dailyQuery += ` GROUP BY TO_CHAR(SUBUL_TIME, 'YYYY-MM-DD') ORDER BY TRANS_DATE`
+    dailyQuery += ` GROUP BY TO_CHAR(Subul_Time, 'YYYY-MM-DD') ORDER BY TRANS_DATE`
 
     const dailyStats = await executeQuery<DailyTransactionRow>(dailyQuery, dailyBinds)
 
     // 인기 품목 (입출고 빈도순)
     let topItemsQuery = `
       SELECT
-        ITEM_CODE,
-        MAX(ITEM_NAME) AS ITEM_NAME,
-        SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN QTY ELSE 0 END) AS IN_QTY,
-        SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN QTY ELSE 0 END) AS OUT_QTY,
-        SUM(QTY) AS TOTAL_QTY
+        itemCode,
+        MAX(itemName) AS itemName,
+        SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN Qty ELSE 0 END) AS IN_Qty,
+        SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN Qty ELSE 0 END) AS OUT_Qty,
+        SUM(Qty) AS TOTAL_Qty
       FROM ls_motor_subul
-      WHERE SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
+      WHERE Subul_Time >= NOW() - INTERVAL '1 day' * :days
     `
 
     const topItemsBinds: Record<string, unknown> = { days }
@@ -111,13 +111,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (warehouseId) {
-      topItemsQuery += ` AND STORAGE = :warehouseId`
+      topItemsQuery += ` AND storage = :warehouseId`
       topItemsBinds.warehouseId = warehouseId
     }
 
     topItemsQuery += `
-      GROUP BY ITEM_CODE
-      ORDER BY TOTAL_QTY DESC
+      GROUP BY itemCode
+      ORDER BY TOTAL_Qty DESC
       LIMIT 10
     `
 
@@ -126,10 +126,10 @@ export async function GET(request: NextRequest) {
     // 창고별 통계
     let warehouseQuery = `
       SELECT
-        STORAGE,
-        COUNT(DISTINCT ITEM_CODE) AS ITEM_COUNT,
-        SUM(QTY) AS TOTAL_QTY,
-        COUNT(DISTINCT LOCATION) AS LOCATIONS
+        storage,
+        COUNT(DISTINCT itemCode) AS ITEM_COUNT,
+        SUM(Qty) AS TOTAL_Qty,
+        COUNT(DISTINCT Location) AS LocationS
       FROM ls_motor_rack
     `
 
@@ -142,27 +142,27 @@ export async function GET(request: NextRequest) {
 
     if (warehouseId) {
       if (isMultiTenantEnabled()) {
-        warehouseQuery += ` AND STORAGE = :warehouseId`
+        warehouseQuery += ` AND storage = :warehouseId`
       } else {
-        warehouseQuery += ` WHERE STORAGE = :warehouseId`
+        warehouseQuery += ` WHERE storage = :warehouseId`
       }
       warehouseBinds.warehouseId = warehouseId
     }
 
-    warehouseQuery += ` GROUP BY STORAGE ORDER BY TOTAL_QTY DESC`
+    warehouseQuery += ` GROUP BY storage ORDER BY TOTAL_Qty DESC`
 
     const warehouseStats = await executeQuery<WarehouseStatsRow>(warehouseQuery, warehouseBinds)
 
     // 사용자 활동 통계
     let activityQuery = `
       SELECT
-        s.USER_ID,
+        s.user,
         u.NAME AS USER_NAME,
         COUNT(*) AS TRANS_COUNT,
-        MAX(s.SUBUL_TIME) AS LAST_ACTIVITY
+        MAX(s.Subul_Time) AS LAST_ACTIVITY
       FROM ls_motor_subul s
-      LEFT JOIN ls_users u ON s.USER_ID = u.ID
-      WHERE s.SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
+      LEFT JOIN ls_users u ON s.user = u.ID
+      WHERE s.Subul_Time >= NOW() - INTERVAL '1 day' * :days
     `
 
     const activityBinds: Record<string, unknown> = { days }
@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
     }
 
     activityQuery += `
-      GROUP BY s.USER_ID, u.NAME
+      GROUP BY s.user, u.NAME
       ORDER BY TRANS_COUNT DESC
       LIMIT 10
     `
@@ -187,12 +187,12 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN 1 ELSE 0 END) AS TOTAL_IN,
         SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN 1 ELSE 0 END) AS TOTAL_OUT,
         SUM(CASE WHEN SUBUL_TYPE = 'MOVE' THEN 1 ELSE 0 END) AS TOTAL_MOVE,
-        SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN QTY ELSE 0 END) AS TOTAL_IN_QTY,
-        SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN QTY ELSE 0 END) AS TOTAL_OUT_QTY,
-        COUNT(DISTINCT ITEM_CODE) AS UNIQUE_ITEMS,
-        COUNT(DISTINCT USER_ID) AS ACTIVE_USERS
+        SUM(CASE WHEN SUBUL_TYPE = 'IN' THEN Qty ELSE 0 END) AS TOTAL_IN_Qty,
+        SUM(CASE WHEN SUBUL_TYPE = 'OUT' THEN Qty ELSE 0 END) AS TOTAL_OUT_Qty,
+        COUNT(DISTINCT itemCode) AS UNIQUE_ITEMS,
+        COUNT(DISTINCT user) AS ACTIVE_USERS
       FROM ls_motor_subul
-      WHERE SUBUL_TIME >= NOW() - INTERVAL '1 day' * :days
+      WHERE Subul_Time >= NOW() - INTERVAL '1 day' * :days
     `
 
     const summaryBinds: Record<string, unknown> = { days }
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (warehouseId) {
-      summaryQuery += ` AND STORAGE = :warehouseId`
+      summaryQuery += ` AND storage = :warehouseId`
       summaryBinds.warehouseId = warehouseId
     }
 
@@ -219,8 +219,8 @@ export async function GET(request: NextRequest) {
           totalIn: summary.TOTAL_IN || 0,
           totalOut: summary.TOTAL_OUT || 0,
           totalMove: summary.TOTAL_MOVE || 0,
-          totalInQty: summary.TOTAL_IN_QTY || 0,
-          totalOutQty: summary.TOTAL_OUT_QTY || 0,
+          totalInQty: summary.TOTAL_IN_Qty || 0,
+          totalOutQty: summary.TOTAL_OUT_Qty || 0,
           uniqueItems: summary.UNIQUE_ITEMS || 0,
           activeUsers: summary.ACTIVE_USERS || 0,
         },
@@ -229,24 +229,24 @@ export async function GET(request: NextRequest) {
           inCount: row.IN_COUNT,
           outCount: row.OUT_COUNT,
           moveCount: row.MOVE_COUNT,
-          inQty: row.IN_QTY,
-          outQty: row.OUT_QTY,
+          inQty: row.IN_Qty,
+          outQty: row.OUT_Qty,
         })),
         topItems: topItems.map((row) => ({
-          itemCode: row.ITEM_CODE,
-          itemName: row.ITEM_NAME,
-          inQty: row.IN_QTY,
-          outQty: row.OUT_QTY,
-          totalQty: row.TOTAL_QTY,
+          itemCode: row.itemCode,
+          itemName: row.itemName,
+          inQty: row.IN_Qty,
+          outQty: row.OUT_Qty,
+          totalQty: row.TOTAL_Qty,
         })),
         warehouseStats: warehouseStats.map((row) => ({
-          warehouseId: row.STORAGE,
+          warehouseId: row.storage,
           itemCount: row.ITEM_COUNT,
-          totalQty: row.TOTAL_QTY,
-          locations: row.LOCATIONS,
+          totalQty: row.TOTAL_Qty,
+          locations: row.LocationS,
         })),
         userActivity: userActivity.map((row) => ({
-          userId: row.USER_ID,
+          userId: row.user,
           userName: row.USER_NAME || '알 수 없음',
           transactionCount: row.TRANS_COUNT,
           lastActivity: row.LAST_ACTIVITY,

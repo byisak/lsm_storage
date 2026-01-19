@@ -22,36 +22,36 @@ export interface ExportOptions {
 }
 
 interface RackRow {
-  ITEM_CODE: string
-  ITEM_NAME: string
-  QTY: number
-  LOCATION: string
-  STORAGE: string
-  REMARK: string
+  itemCode: string
+  itemName: string
+  Qty: number
+  Location: string
+  storage: string
+  remark: string
   CREATED_DATE: Date
   UPDATED_DATE: Date
 }
 
 interface TransactionRow {
-  SUBUL_TIME: Date
+  Subul_Time: Date
   SUBUL_TYPE: string
-  ITEM_CODE: string
-  ITEM_NAME: string
-  QTY: number
-  LOCATION: string
-  FROM_LOCATION: string
-  TO_LOCATION: string
-  STORAGE: string
+  itemCode: string
+  itemName: string
+  Qty: number
+  Location: string
+  FROM_Location: string
+  TO_Location: string
+  storage: string
   USER_NAME: string
-  REMARK: string
+  remark: string
 }
 
 interface ItemRow {
-  ITEM_CODE: string
-  ITEM_NAME: string
+  itemCode: string
+  itemName: string
   ITEM_SPEC: string
   UNIT: string
-  CATEGORY: string
+  Category: string
 }
 
 // ============================================================
@@ -144,8 +144,8 @@ export async function exportInventory(options: ExportOptions = {}): Promise<{
   const companyId = await getCompanyId()
 
   let query = `
-    SELECT r.ITEM_CODE, r.ITEM_NAME, r.QTY, r.LOCATION, r.STORAGE,
-           r.REMARK, r.CREATED_DATE, r.UPDATED_DATE
+    SELECT r.itemCode, r.itemName, r.Qty, r.Location, r.storage,
+           r.remark, r.CREATED_DATE, r.UPDATED_DATE
     FROM ls_motor_rack r
   `
 
@@ -159,21 +159,21 @@ export async function exportInventory(options: ExportOptions = {}): Promise<{
   }
 
   if (options.warehouseId) {
-    query += ` AND r.STORAGE = :warehouseId`
+    query += ` AND r.storage = :warehouseId`
     binds.warehouseId = options.warehouseId
   }
 
-  query += ` ORDER BY r.STORAGE, r.LOCATION, r.ITEM_CODE`
+  query += ` ORDER BY r.storage, r.Location, r.itemCode`
 
   const rows = await executeQuery<RackRow>(query, binds)
 
   const exportData = rows.map((row) => ({
-    itemCode: row.ITEM_CODE,
-    itemName: row.ITEM_NAME,
-    qty: row.QTY,
-    location: row.LOCATION,
-    storage: row.STORAGE,
-    remark: row.REMARK || '',
+    itemCode: row.itemCode,
+    itemName: row.itemName,
+    qty: row.Qty,
+    location: row.Location,
+    storage: row.storage,
+    remark: row.remark || '',
     createdDate: formatDate(row.CREATED_DATE),
     updatedDate: formatDate(row.UPDATED_DATE),
   }))
@@ -227,11 +227,11 @@ export async function exportTransactions(options: ExportOptions = {}): Promise<{
   const companyId = await getCompanyId()
 
   let query = `
-    SELECT s.SUBUL_TIME, s.SUBUL_TYPE, s.ITEM_CODE, s.ITEM_NAME, s.QTY,
-           s.LOCATION, s.FROM_LOCATION, s.TO_LOCATION, s.STORAGE,
-           u.NAME AS USER_NAME, s.REMARK
+    SELECT s.Subul_Time, s.SUBUL_TYPE, s.itemCode, s.itemName, s.Qty,
+           s.Location, s.FROM_Location, s.TO_Location, s.storage,
+           u.NAME AS USER_NAME, s.remark
     FROM ls_motor_subul s
-    LEFT JOIN ls_users u ON s.USER_ID = u.ID
+    LEFT JOIN ls_users u ON s.user = u.ID
   `
 
   const binds: Record<string, unknown> = {}
@@ -244,21 +244,21 @@ export async function exportTransactions(options: ExportOptions = {}): Promise<{
   }
 
   if (options.warehouseId) {
-    query += ` AND s.STORAGE = :warehouseId`
+    query += ` AND s.storage = :warehouseId`
     binds.warehouseId = options.warehouseId
   }
 
   if (options.startDate) {
-    query += ` AND s.SUBUL_TIME >= :startDate`
+    query += ` AND s.Subul_Time >= :startDate`
     binds.startDate = options.startDate
   }
 
   if (options.endDate) {
-    query += ` AND s.SUBUL_TIME <= :endDate`
+    query += ` AND s.Subul_Time <= :endDate`
     binds.endDate = options.endDate
   }
 
-  query += ` ORDER BY s.SUBUL_TIME DESC`
+  query += ` ORDER BY s.Subul_Time DESC`
 
   const rows = await executeQuery<TransactionRow>(query, binds)
 
@@ -278,17 +278,17 @@ export async function exportTransactions(options: ExportOptions = {}): Promise<{
   }
 
   const exportData = rows.map((row) => ({
-    datetime: formatDateTime(row.SUBUL_TIME),
+    datetime: formatDateTime(row.Subul_Time),
     type: getTransactionTypeName(row.SUBUL_TYPE),
-    itemCode: row.ITEM_CODE,
-    itemName: row.ITEM_NAME,
-    qty: row.QTY,
-    location: row.LOCATION || '',
-    fromLocation: row.FROM_LOCATION || '',
-    toLocation: row.TO_LOCATION || '',
-    storage: row.STORAGE,
+    itemCode: row.itemCode,
+    itemName: row.itemName,
+    qty: row.Qty,
+    location: row.Location || '',
+    fromLocation: row.FROM_Location || '',
+    toLocation: row.TO_Location || '',
+    storage: row.storage,
     userName: row.USER_NAME || '',
-    remark: row.REMARK || '',
+    remark: row.remark || '',
   }))
 
   const headers = [
@@ -335,7 +335,7 @@ export async function exportItems(options: ExportOptions = {}): Promise<{
   const companyId = await getCompanyId()
 
   let query = `
-    SELECT ITEM_CODE, ITEM_NAME, ITEM_SPEC, UNIT, CATEGORY
+    SELECT itemCode, itemName, ITEM_SPEC, UNIT, Category
     FROM ls_motor_item
   `
 
@@ -346,16 +346,16 @@ export async function exportItems(options: ExportOptions = {}): Promise<{
     binds.companyId = companyId
   }
 
-  query += ` ORDER BY ITEM_CODE`
+  query += ` ORDER BY itemCode`
 
   const rows = await executeQuery<ItemRow>(query, binds)
 
   const exportData = rows.map((row) => ({
-    itemCode: row.ITEM_CODE,
-    itemName: row.ITEM_NAME,
+    itemCode: row.itemCode,
+    itemName: row.itemName,
     itemSpec: row.ITEM_SPEC || '',
     unit: row.UNIT || '',
-    category: row.CATEGORY || '',
+    category: row.Category || '',
   }))
 
   const headers = [

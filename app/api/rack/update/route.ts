@@ -73,13 +73,13 @@ export async function PUT(request: NextRequest) {
 
     if (isMultiTenantEnabled()) {
       existingRows = await executeQuery<LsMotorRack>(
-        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK, COMPANY_ID
+        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark, COMPANY_ID
          FROM ls_motor_rack WHERE ID = :id AND COMPANY_ID = :companyId`,
         { id, companyId: session.companyId }
       )
     } else {
       existingRows = await executeQuery<LsMotorRack>(
-        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
          FROM ls_motor_rack WHERE ID = :id`,
         { id }
       )
@@ -94,13 +94,13 @@ export async function PUT(request: NextRequest) {
 
     const existingRack = {
       id: existingRows[0].ID,
-      storage: existingRows[0].STORAGE,
-      location: existingRows[0].LOCATION,
-      itemCode: existingRows[0].ITEM_CODE,
-      itemName: existingRows[0].ITEM_NAME,
-      nowQty: existingRows[0].NOW_QTY,
-      inDay: existingRows[0].IN_DAY,
-      remark: existingRows[0].REMARK,
+      storage: existingRows[0].storage,
+      location: existingRows[0].Location,
+      itemCode: existingRows[0].itemCode,
+      itemName: existingRows[0].itemName,
+      nowQty: existingRows[0].Now_Qty,
+      inDay: existingRows[0].In_day,
+      remark: existingRows[0].remark,
     }
 
     // 수정 데이터 구성
@@ -125,7 +125,7 @@ export async function PUT(request: NextRequest) {
       await withTransaction(async (connection) => {
         // 삭제 이력 기록
         await connection.execute(
-          `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+          `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage: existingRack.storage,
@@ -166,23 +166,23 @@ export async function PUT(request: NextRequest) {
       const updateBinds: { [key: string]: unknown } = { id }
 
       if (updateData.itemCode !== undefined) {
-        updateFields.push('ITEM_CODE = :itemCode')
+        updateFields.push('itemCode = :itemCode')
         updateBinds.itemCode = updateData.itemCode
       }
       if (updateData.itemName !== undefined) {
-        updateFields.push('ITEM_NAME = :itemName')
+        updateFields.push('itemName = :itemName')
         updateBinds.itemName = updateData.itemName
       }
       if (updateData.nowQty !== undefined) {
-        updateFields.push('NOW_QTY = :nowQty')
+        updateFields.push('Now_Qty = :nowQty')
         updateBinds.nowQty = updateData.nowQty
       }
       if (updateData.inDay !== undefined) {
-        updateFields.push('IN_DAY = :inDay')
+        updateFields.push('In_day = :inDay')
         updateBinds.inDay = updateData.inDay
       }
       if (updateData.remark !== undefined) {
-        updateFields.push('REMARK = :remark')
+        updateFields.push('remark = :remark')
         updateBinds.remark = updateData.remark
       }
 
@@ -200,7 +200,7 @@ export async function PUT(request: NextRequest) {
           : 0
 
         await connection.execute(
-          `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+          `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
            VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
           {
             storage: existingRack.storage,
@@ -219,7 +219,7 @@ export async function PUT(request: NextRequest) {
 
       // 업데이트된 데이터 조회
       const rows = await connection.query<LsMotorRack>(
-        `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+        `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
          FROM ls_motor_rack WHERE ID = :id`,
         { id }
       )
@@ -232,13 +232,13 @@ export async function PUT(request: NextRequest) {
       message: '재고가 수정되었습니다.',
       data: updatedRack ? {
         id: updatedRack.ID,
-        storage: updatedRack.STORAGE,
-        location: updatedRack.LOCATION,
-        itemCode: updatedRack.ITEM_CODE,
-        itemName: updatedRack.ITEM_NAME,
-        nowQty: updatedRack.NOW_QTY,
-        inDay: updatedRack.IN_DAY,
-        remark: updatedRack.REMARK,
+        storage: updatedRack.storage,
+        location: updatedRack.Location,
+        itemCode: updatedRack.itemCode,
+        itemName: updatedRack.itemName,
+        nowQty: updatedRack.Now_Qty,
+        inDay: updatedRack.In_day,
+        remark: updatedRack.remark,
       } : null,
     })
   } catch (error) {

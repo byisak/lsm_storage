@@ -141,9 +141,9 @@ export async function getActiveAnnouncements(): Promise<Announcement[]> {
   // 활성 공지 조회 (읽음 상태 포함)
   const rows = await executeQuery<AnnouncementRow>(
     `SELECT a.*,
-            CASE WHEN ar.USER_ID IS NOT NULL THEN 1 ELSE 0 END AS IS_READ
+            CASE WHEN ar.user IS NOT NULL THEN 1 ELSE 0 END AS IS_READ
      FROM ANNOUNCEMENTS a
-     LEFT JOIN ANNOUNCEMENT_READS ar ON a.ID = ar.ANNOUNCEMENT_ID AND ar.USER_ID = :userId
+     LEFT JOIN ANNOUNCEMENT_READS ar ON a.ID = ar.ANNOUNCEMENT_ID AND ar.user = :userId
      WHERE a.STATUS = 'ACTIVE'
        AND (a.START_DATE IS NULL OR a.START_DATE <= CURRENT_TIMESTAMP)
        AND (a.END_DATE IS NULL OR a.END_DATE >= CURRENT_TIMESTAMP)
@@ -184,7 +184,7 @@ export async function getUnreadAnnouncementCount(): Promise<number> {
        )
        AND NOT EXISTS (
          SELECT 1 FROM ANNOUNCEMENT_READS ar
-         WHERE ar.ANNOUNCEMENT_ID = a.ID AND ar.USER_ID = :userId
+         WHERE ar.ANNOUNCEMENT_ID = a.ID AND ar.user = :userId
        )`,
     { companyId, planType, userId: session.userId }
   )
@@ -254,7 +254,7 @@ export async function markAnnouncementAsRead(announcementId: number): Promise<vo
   // 이미 읽음 처리되었는지 확인
   const existing = await executeQuery<{ CNT: number }>(
     `SELECT COUNT(*) AS CNT FROM ANNOUNCEMENT_READS
-     WHERE USER_ID = :userId AND ANNOUNCEMENT_ID = :announcementId`,
+     WHERE user = :userId AND ANNOUNCEMENT_ID = :announcementId`,
     { userId: session.userId, announcementId }
   )
 
@@ -263,7 +263,7 @@ export async function markAnnouncementAsRead(announcementId: number): Promise<vo
   }
 
   await executeInsert(
-    `INSERT INTO ANNOUNCEMENT_READS (USER_ID, ANNOUNCEMENT_ID)
+    `INSERT INTO ANNOUNCEMENT_READS (user, ANNOUNCEMENT_ID)
      VALUES (:userId, :announcementId)`,
     { userId: session.userId, announcementId }
   )
@@ -295,7 +295,7 @@ export async function markAllAnnouncementsAsRead(): Promise<void> {
        )
        AND NOT EXISTS (
          SELECT 1 FROM ANNOUNCEMENT_READS ar
-         WHERE ar.ANNOUNCEMENT_ID = a.ID AND ar.USER_ID = :userId
+         WHERE ar.ANNOUNCEMENT_ID = a.ID AND ar.user = :userId
        )`,
     { companyId, planType, userId: session.userId }
   )
@@ -303,7 +303,7 @@ export async function markAllAnnouncementsAsRead(): Promise<void> {
   // 각 공지를 읽음 처리
   for (const row of unreadIds) {
     await executeInsert(
-      `INSERT INTO ANNOUNCEMENT_READS (USER_ID, ANNOUNCEMENT_ID)
+      `INSERT INTO ANNOUNCEMENT_READS (user, ANNOUNCEMENT_ID)
        VALUES (:userId, :announcementId)`,
       { userId: session.userId, announcementId: row.ID }
     )

@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     // 기존 재고 확인
     const rackRows = await executeQuery<LsMotorRack>(
-      `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+      `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
        FROM ls_motor_rack WHERE ID = :id`,
       { id: rackId }
     )
@@ -32,13 +32,13 @@ export async function POST(request: NextRequest) {
 
     const rack = {
       id: rackRows[0].ID,
-      storage: rackRows[0].STORAGE,
-      location: rackRows[0].LOCATION,
-      itemCode: rackRows[0].ITEM_CODE,
-      itemName: rackRows[0].ITEM_NAME,
-      nowQty: rackRows[0].NOW_QTY,
-      inDay: rackRows[0].IN_DAY,
-      remark: rackRows[0].REMARK,
+      storage: rackRows[0].storage,
+      location: rackRows[0].Location,
+      itemCode: rackRows[0].itemCode,
+      itemName: rackRows[0].itemName,
+      nowQty: rackRows[0].Now_Qty,
+      inDay: rackRows[0].In_day,
+      remark: rackRows[0].remark,
     }
 
     if (rack.nowQty < qty) {
@@ -65,13 +65,13 @@ export async function POST(request: NextRequest) {
       } else {
         // 재고 차감
         await connection.execute(
-          `UPDATE ls_motor_rack SET NOW_QTY = :nowQty WHERE ID = :id`,
+          `UPDATE ls_motor_rack SET Now_Qty = :nowQty WHERE ID = :id`,
           { nowQty: newQty, id: rackId },
           { autoCommit: false }
         )
 
         const rows = await connection.query<LsMotorRack>(
-          `SELECT ID, STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, NOW_QTY, IN_DAY, REMARK
+          `SELECT ID, storage, Location, itemCode, itemName, Now_Qty, In_day, remark
            FROM ls_motor_rack WHERE ID = :id`,
           { id: rackId }
         )
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       const fullRemark = remark ? `${undoMeta}|${remark}` : undoMeta
 
       await connection.execute(
-        `INSERT INTO ls_motor_subul (STORAGE, LOCATION, ITEM_CODE, ITEM_NAME, QTY, CATEGORY, SUBUL_TIME, REMARK, USER_ID)
+        `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
          VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
         {
           storage: rack.storage,
@@ -114,13 +114,13 @@ export async function POST(request: NextRequest) {
       message: '출고가 완료되었습니다.',
       data: result ? {
         id: result.ID,
-        storage: result.STORAGE,
-        location: result.LOCATION,
-        itemCode: result.ITEM_CODE,
-        itemName: result.ITEM_NAME,
-        nowQty: result.NOW_QTY,
-        inDay: result.IN_DAY,
-        remark: result.REMARK,
+        storage: result.storage,
+        location: result.Location,
+        itemCode: result.itemCode,
+        itemName: result.itemName,
+        nowQty: result.Now_Qty,
+        inDay: result.In_day,
+        remark: result.remark,
       } : null,
       deleted: result === null,
     })
