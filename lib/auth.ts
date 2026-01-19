@@ -155,13 +155,14 @@ export class AuthError extends Error {
 interface UserWithCompany {
   ID: number
   NAME: string
-  EMAIL: string
+  EMAIL: string | null
+  USERNAME?: string
   PASSWORD: string
-  STATUS: 'PENDING' | 'APPROVED' | 'REJECTED'
+  STATUS: 'PENDING' | 'APPROVED' | 'REJECTED' | boolean
   ROLE: UserRole
-  CREATED_AT: Date
-  APPROVED_AT: Date | null
-  APPROVED_BY: number | null
+  CREATED_AT?: Date
+  APPROVED_AT?: Date | null
+  APPROVED_BY?: number | null
   COMPANY_ID: string | null
   COMPANY_NAME?: string
 }
@@ -220,9 +221,9 @@ export function toUserInfo(session: AuthSession): UserInfo {
 // ============================================================
 
 /**
- * 이메일로 사용자를 조회합니다.
+ * 이메일 또는 username으로 사용자를 조회합니다.
  * - 멀티테넌트 활성화: 회사 정보 포함
- * - 멀티테넌트 비활성화: 기존 방식
+ * - 멀티테넌트 비활성화: LSM_Warehouse_3D 테이블 구조 사용
  */
 export async function findUserByEmail(email: string): Promise<UserWithCompany | null> {
   const normalizedEmail = email.toLowerCase()
@@ -240,18 +241,28 @@ export async function findUserByEmail(email: string): Promise<UserWithCompany | 
     )
     return users[0] || null
   } else {
-    // 단일 테넌트: 기존 방식
-    const users = await executeQuery<UserWithCompany>(
-      `SELECT ID, NAME, EMAIL, PASSWORD, STATUS, ROLE, CREATED_AT, APPROVED_AT, APPROVED_BY
+    // 단일 테넌트: LSM_Warehouse_3D 테이블 구조 (username 또는 email로 조회)
+    const users = await executeQuery<UserWithCompany & { STATUS: boolean | number }>(
+      `SELECT id AS ID, name AS NAME, email AS EMAIL, username AS USERNAME,
+              password AS PASSWORD, status AS STATUS, role AS ROLE
        FROM ls_users
-       WHERE EMAIL = :email`,
+       WHERE username = :email OR email = :email`,
       { email: normalizedEmail }
     )
 
     if (users.length === 0) return null
 
+    const user = users[0]
+
+    // status를 boolean에서 문자열로 변환 (1/true = APPROVED, 0/false = REJECTED)
+    const statusValue = user.STATUS
+    const normalizedStatus: 'APPROVED' | 'REJECTED' =
+      (statusValue === true || statusValue === 1) ? 'APPROVED' : 'REJECTED'
+
     return {
-      ...users[0],
+      ...user,
+      STATUS: normalizedStatus,
+      EMAIL: user.EMAIL || user.USERNAME || normalizedEmail,
       COMPANY_ID: DEFAULT_COMPANY_ID,
     }
   }
