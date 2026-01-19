@@ -78,13 +78,12 @@ export async function POST(request: NextRequest) {
         updatedRack = rows[0]
       }
 
-      // 수불 이력 추가 - 되돌리기를 위한 JSON 메타데이터 포함
+      // 수불 이력 추가 - 되돌리기를 위한 JSON 메타데이터 (압축 키 사용)
+      // t=type, r=rackId, q=beforeQty, d=inDay
       const undoMeta = {
-        type: 'outbound',
-        rackId: rack.id,
-        beforeQty: rack.nowQty,
-        inDay: rack.inDay,
-        originalRemark: rack.remark,
+        t: 'out',
+        r: rack.id,
+        q: rack.nowQty,
       }
       const displayRemark = remark ? String(remark).substring(0, 50) : ''
       // 형식: JSON|displayText (100자 제한 고려)

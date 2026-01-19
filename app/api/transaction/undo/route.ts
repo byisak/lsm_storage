@@ -14,20 +14,22 @@ interface SubulRecord {
   user: string
 }
 
+// 압축된 키 형식 (t=type, r=rackId, q=qty, ts=toStorage, tl=toLocation, m=isMerge, tq=targetBeforeQty)
 interface UndoMeta {
-  type: string
+  // 압축 키
+  t?: string      // type: 'out' | 'mv'
+  r?: number      // rackId
+  q?: number      // beforeQty
+  ts?: string     // toStorage
+  tl?: string     // toLocation
+  m?: number      // isMerge (0 or 1)
+  tq?: number     // targetBeforeQty
+  // 레거시 키 (하위 호환)
+  type?: string
   rackId?: number
   beforeQty?: number
-  afterQty?: number
-  inDay?: Date | null
-  originalRemark?: string | null
-  // 이동 관련
-  sourceRackId?: number
-  targetRackId?: number
   toStorage?: string
   toLocation?: string
-  fromStorage?: string
-  fromLocation?: string
   isMerge?: boolean
   targetBeforeQty?: number
 }
@@ -186,7 +188,11 @@ async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user:
 // 이동 취소 (역방향 이동)
 async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: string) {
   await withTransaction(async (connection) => {
-    const { toStorage, toLocation, sourceRackId, targetRackId, targetBeforeQty, isMerge } = meta
+    // 압축 키와 레거시 키 모두 지원
+    const toStorage = meta.ts || meta.toStorage
+    const toLocation = meta.tl || meta.toLocation
+    const targetBeforeQty = meta.tq ?? meta.targetBeforeQty
+    const isMerge = meta.m === 1 || meta.isMerge
 
     if (!toStorage || !toLocation) {
       throw new Error('이동 복구 정보가 불완전합니다.')

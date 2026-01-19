@@ -140,22 +140,17 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // 3. 이동 이력 기록 (출고) - 되돌리기를 위한 JSON 메타데이터 포함
+      // 3. 이동 이력 기록 (출고) - 되돌리기를 위한 JSON 메타데이터 (압축 키 사용)
       const isMerge = existingTarget && merge
       const sourceCategory = isMerge ? '이동(병합)' : '이동(출)'
 
+      // t=type, ts=toStorage, tl=toLocation, m=isMerge, tq=targetBeforeQty
       const undoMeta = {
-        type: 'move',
-        sourceRackId: sourceRack.id,
-        targetRackId: existingTarget?.idx || null,
-        toStorage,
-        toLocation,
-        fromStorage: sourceRack.storage,
-        fromLocation: sourceRack.location,
-        isMerge: !!isMerge,
-        targetBeforeQty: targetBeforeQty,
-        inDay: sourceRack.inDay,
-        originalRemark: sourceRack.remark,
+        t: 'mv',
+        ts: toStorage,
+        tl: toLocation,
+        m: isMerge ? 1 : 0,
+        tq: targetBeforeQty,
       }
       const displayRemark = `→ ${toLocation}`
       const sourceRemark = `${JSON.stringify(undoMeta)}|${displayRemark}`.substring(0, 100)
