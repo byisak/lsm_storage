@@ -39,25 +39,36 @@ function convertBinds(
   binds: Record<string, unknown> = {}
 ): { sql: string; values: unknown[] } {
   const values: unknown[] = []
-  const bindOrder: string[] = []
 
-  // :bindName 패턴을 찾아서 순서대로 기록
   const convertedSql = sql.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, bindName) => {
     const key = bindName.toLowerCase()
-    const value = binds[bindName] ?? binds[key] ?? binds[bindName.toUpperCase()]
+    const upperKey = bindName.toUpperCase()
 
-    if (value === undefined) {
-      // 바인드 값이 없으면 그대로 둠
+    let value: unknown
+    let found = false
+
+    if (bindName in binds) {
+      value = binds[bindName]
+      found = true
+    } else if (key in binds) {
+      value = binds[key]
+      found = true
+    } else if (upperKey in binds) {
+      value = binds[upperKey]
+      found = true
+    }
+
+    if (!found) {
       return match
     }
 
-    bindOrder.push(bindName)
     values.push(value)
     return '?'
   })
 
   return { sql: convertedSql, values }
 }
+
 
 // ============================================================
 // 쿼리 실행 함수들 (기존 API와 호환)
