@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Home, PackagePlus, ClipboardList, ScanLine } from 'lucide-react'
@@ -18,6 +18,29 @@ export function BottomNav() {
   const router = useRouter()
   const { settings } = useSettings()
   const [showScanner, setShowScanner] = useState(false)
+  const [isVisible, setIsVisible] = useState(true)
+  const lastScrollY = useRef(0)
+  const scrollThreshold = 50 // 스크롤 감지 임계값
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      const scrollDiff = currentScrollY - lastScrollY.current
+
+      // 위로 스크롤 (음수) → 보이기
+      // 아래로 스크롤 (양수) + 임계값 초과 → 숨기기
+      if (scrollDiff < -10) {
+        setIsVisible(true)
+      } else if (scrollDiff > 10 && currentScrollY > scrollThreshold) {
+        setIsVisible(false)
+      }
+
+      lastScrollY.current = currentScrollY
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   // 스캔 성공 시 홈페이지로 이동하면서 창고ID와 위치 전달
   const handleScanSuccess = (storageId: string, location: string) => {
@@ -33,7 +56,9 @@ export function BottomNav() {
 
   return (
     <>
-      <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+      <nav className={`fixed left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-out ${
+        isVisible ? 'bottom-4 opacity-100' : '-bottom-20 opacity-0'
+      }`}>
         <div className="flex items-center gap-1 px-2 py-2 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl rounded-full shadow-lg border border-white/20 dark:border-zinc-700/50">
           {navItems.map((item) => {
             const isActive = pathname === item.href ||
