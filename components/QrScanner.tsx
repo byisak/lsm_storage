@@ -148,8 +148,8 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
 
         let code = null
 
-        // 1차: 중앙 50% 영역만 스캔 (십자가 근처)
-        const smallCropSize = Math.min(canvas.width, canvas.height) * 0.5
+        // 1차: 중앙 70% 영역만 스캔 (십자가 근처)
+        const smallCropSize = Math.min(canvas.width, canvas.height) * 0.7
         const smallCropX = (canvas.width - smallCropSize) / 2
         const smallCropY = (canvas.height - smallCropSize) / 2
         const smallData = ctx.getImageData(smallCropX, smallCropY, smallCropSize, smallCropSize)
@@ -169,9 +169,9 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
           code.location.bottomRightCorner.y += smallCropY
         }
 
-        // 2차: 실패 시 중앙 80% 영역 스캔
+        // 2차: 실패 시 중앙 90% 영역 스캔
         if (!code && canvas.width > 300 && canvas.height > 300) {
-          const largeCropSize = Math.min(canvas.width, canvas.height) * 0.8
+          const largeCropSize = Math.min(canvas.width, canvas.height) * 0.9
           const largeCropX = (canvas.width - largeCropSize) / 2
           const largeCropY = (canvas.height - largeCropSize) / 2
           const largeData = ctx.getImageData(largeCropX, largeCropY, largeCropSize, largeCropSize)
