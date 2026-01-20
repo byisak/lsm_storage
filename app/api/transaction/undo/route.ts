@@ -344,10 +344,12 @@ async function undoEdit(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
       throw new Error('해당 재고를 찾을 수 없습니다. (이미 삭제됨)')
     }
 
-    // 원래 값으로 복원 (수량, 입고일만 - 품목코드/명은 변경 안 함)
+    // 원래 값으로 복원 (품목코드, 품목명, 수량, 입고일)
     await connection.execute(
-      `UPDATE ls_motor_rack SET Now_Qty = :nowQty, In_day = :inDay WHERE idx = :id`,
+      `UPDATE ls_motor_rack SET itemCode = :itemCode, itemName = :itemName, Now_Qty = :nowQty, In_day = :inDay WHERE idx = :id`,
       {
+        itemCode: prevItemCode,
+        itemName: prevItemName,
         nowQty: prevQty,
         inDay: prevInDay ? new Date(prevInDay) : null,
         id: rackId,
