@@ -1511,7 +1511,12 @@ function HomeContent() {
               disabled={outboundLoading || !outboundQty}
               className="flex-1 h-12 rounded-xl bg-orange-600 hover:bg-orange-700"
             >
-              {outboundLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : '출고 처리'}
+              {outboundLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  처리 중...
+                </>
+              ) : '출고 처리'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1656,7 +1661,12 @@ function HomeContent() {
               disabled={editLoading}
               className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700"
             >
-              {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : '저장'}
+              {editLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  처리 중...
+                </>
+              ) : '저장'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1797,7 +1807,12 @@ function HomeContent() {
               disabled={moveLoading || !moveForm.toLocation || !moveForm.qty}
               className="flex-1 h-12 rounded-xl bg-teal-600 hover:bg-teal-700"
             >
-              {moveLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : '이동 처리'}
+              {moveLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  처리 중...
+                </>
+              ) : '이동 처리'}
             </Button>
           </DialogFooter>
         </DialogContent>
