@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Search, ArrowDownToLine, ArrowUpFromLine, MapPin, Warehouse, User, Loader2, ClipboardX, Pencil, MoveRight, Calendar as CalendarIcon, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+
+interface AutocompleteItem {
+  itemCode: string
+  itemName: string
+}
 
 interface SubulItem {
   id: number
@@ -31,8 +36,54 @@ export default function TransactionHistoryPage() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined)
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined)
 
+  // 자동완성 관련 state
+  const [suggestions, setSuggestions] = useState<AutocompleteItem[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     fetchHistory()
+  }, [])
+
+  // 자동완성 API 호출
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!query || query.length < 1) {
+        setSuggestions([])
+        setShowSuggestions(false)
+        return
+      }
+      try {
+        const res = await fetch(`/api/item/autocomplete?q=${encodeURIComponent(query)}`)
+        const data = await res.json()
+        if (data.success) {
+          setSuggestions(data.items)
+          setShowSuggestions(data.items.length > 0)
+        }
+      } catch (error) {
+        console.error('Autocomplete error:', error)
+      }
+    }
+    const debounce = setTimeout(fetchSuggestions, 150)
+    return () => clearTimeout(debounce)
+  }, [query])
+
+  // 외부 클릭 시 자동완성 닫기
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const fetchHistory = async (itemCode?: string, category?: string, from?: Date, to?: Date) => {
@@ -58,7 +109,49 @@ export default function TransactionHistoryPage() {
   }
 
   const handleSearch = () => {
+    setShowSuggestions(false)
     fetchHistory(query || undefined, categoryFilter, dateFrom, dateTo)
+  }
+
+  // 자동완성 항목 선택
+  const handleSelectSuggestion = (item: AutocompleteItem) => {
+    setQuery(item.itemCode)
+    setShowSuggestions(false)
+    setSuggestions([])
+    // 선택 후 바로 검색
+    fetchHistory(item.itemCode, categoryFilter, dateFrom, dateTo)
+  }
+
+  // 키보드 네비게이션
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === 'Enter') {
+        handleSearch()
+      }
+      return
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : prev))
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev))
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+          handleSelectSuggestion(suggestions[selectedIndex])
+        } else {
+          handleSearch()
+        }
+        break
+      case 'Escape':
+        setShowSuggestions(false)
+        break
+    }
   }
 
   const formatDateTime = (dateString: string) => {
@@ -103,11 +196,16 @@ export default function TransactionHistoryPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
+            ref={inputRef}
             type="text"
             placeholder="품목코드로 검색"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setSelectedIndex(-1)
+            }}
+            onKeyDown={handleKeyDown}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
             className="pl-10 pr-20 h-12 text-base rounded-xl border-gray-200"
           />
           <Button
@@ -117,6 +215,27 @@ export default function TransactionHistoryPage() {
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
           </Button>
+
+          {/* 자동완성 목록 */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              ref={suggestionsRef}
+              className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-lg max-h-60 overflow-y-auto"
+            >
+              {suggestions.map((item, index) => (
+                <button
+                  key={item.itemCode}
+                  onClick={() => handleSelectSuggestion(item)}
+                  className={`w-full px-4 py-2.5 text-left hover:bg-accent transition-colors ${
+                    index === selectedIndex ? 'bg-accent' : ''
+                  }`}
+                >
+                  <p className="font-medium text-sm text-foreground">{item.itemCode}</p>
+                  <p className="text-xs text-muted-foreground truncate">{item.itemName}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
