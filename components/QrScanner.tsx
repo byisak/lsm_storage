@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Camera, Loader2, Package, MapPin, AlertCircle } from 'lucide-react'
+import { X, Camera, Loader2, Package, MapPin, AlertCircle, Keyboard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -42,14 +42,37 @@ export function QrScanner({ isOpen, onClose, onItemSelect }: QrScannerProps) {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ScanResult | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
+  const [showManualInput, setShowManualInput] = useState(false)
+  const [manualCode, setManualCode] = useState('')
 
   // Start camera
   const startCamera = async () => {
     try {
       setCameraError(null)
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      })
+
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError('이 브라우저는 카메라를 지원하지 않습니다. Chrome 또는 Safari를 사용해주세요.')
+        return
+      }
+
+      let stream: MediaStream | null = null
+
+      // Try rear camera first, then fallback to any camera
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        })
+      } catch {
+        // Fallback: try any available camera
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true
+          })
+        } catch (fallbackErr) {
+          throw fallbackErr
+        }
+      }
 
       streamRef.current = stream
 
@@ -59,9 +82,24 @@ export function QrScanner({ isOpen, onClose, onItemSelect }: QrScannerProps) {
         setScanning(true)
         startScanning()
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Camera error:', err)
-      setCameraError('카메라에 접근할 수 없습니다. 카메라 권한을 확인해주세요.')
+
+      // Provide more specific error messages
+      const error = err as { name?: string }
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        setCameraError('카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.')
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        setCameraError('카메라를 찾을 수 없습니다. 카메라가 연결되어 있는지 확인해주세요.')
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        setCameraError('카메라가 다른 앱에서 사용 중입니다. 다른 앱을 닫고 다시 시도해주세요.')
+      } else if (error.name === 'OverconstrainedError') {
+        setCameraError('카메라 설정 오류가 발생했습니다.')
+      } else if (error.name === 'SecurityError') {
+        setCameraError('보안 오류: HTTPS 연결이 필요합니다.')
+      } else {
+        setCameraError('카메라에 접근할 수 없습니다. 카메라 권한을 확인해주세요.')
+      }
     }
   }
 
@@ -149,7 +187,16 @@ export function QrScanner({ isOpen, onClose, onItemSelect }: QrScannerProps) {
   const resetScan = () => {
     setResult(null)
     setError(null)
+    setShowManualInput(false)
+    setManualCode('')
     startCamera()
+  }
+
+  // Handle manual code input
+  const handleManualSubmit = () => {
+    if (manualCode.trim()) {
+      handleScan(manualCode.trim())
+    }
   }
 
   // Cleanup on unmount or close
@@ -190,17 +237,61 @@ export function QrScanner({ isOpen, onClose, onItemSelect }: QrScannerProps) {
           <>
             {/* Camera view */}
             <div className="relative w-full max-w-sm aspect-square bg-black rounded-2xl overflow-hidden">
-              {cameraError ? (
+              {cameraError || showManualInput ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4">
-                  <AlertCircle className="w-12 h-12 mb-4 text-red-400" />
-                  <p className="text-center text-sm">{cameraError}</p>
-                  <Button
-                    onClick={startCamera}
-                    className="mt-4"
-                    variant="secondary"
-                  >
-                    다시 시도
-                  </Button>
+                  {!showManualInput ? (
+                    <>
+                      <AlertCircle className="w-12 h-12 mb-4 text-red-400" />
+                      <p className="text-center text-sm">{cameraError}</p>
+                      <div className="flex flex-col gap-2 mt-4">
+                        <Button
+                          onClick={startCamera}
+                          variant="secondary"
+                        >
+                          다시 시도
+                        </Button>
+                        <Button
+                          onClick={() => setShowManualInput(true)}
+                          variant="outline"
+                          className="text-white border-white/30 hover:bg-white/10"
+                        >
+                          <Keyboard className="w-4 h-4 mr-2" />
+                          직접 입력
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Keyboard className="w-12 h-12 mb-4 text-blue-400" />
+                      <p className="text-center text-sm mb-4">QR 코드 값을 직접 입력하세요</p>
+                      <input
+                        type="text"
+                        value={manualCode}
+                        onChange={(e) => setManualCode(e.target.value)}
+                        placeholder="예: 1|A-01-A1"
+                        className="w-full max-w-xs px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/50 text-center"
+                        onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
+                      />
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          onClick={() => {
+                            setShowManualInput(false)
+                            startCamera()
+                          }}
+                          variant="outline"
+                          className="text-white border-white/30 hover:bg-white/10"
+                        >
+                          카메라로
+                        </Button>
+                        <Button
+                          onClick={handleManualSubmit}
+                          disabled={!manualCode.trim() || loading}
+                        >
+                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '확인'}
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <>
