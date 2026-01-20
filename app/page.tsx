@@ -162,6 +162,9 @@ function HomeContent() {
   const [historyItem, setHistoryItem] = useState<{ itemCode: string; itemName: string } | null>(null)
   const [historyData, setHistoryData] = useState<HistoryItem[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyFilter, setHistoryFilter] = useState<string>('전체')
+  const [historyDateFrom, setHistoryDateFrom] = useState<Date | undefined>(undefined)
+  const [historyDateTo, setHistoryDateTo] = useState<Date | undefined>(undefined)
 
   // 창고 컨텍스트에서 창고 목록 및 이름 조회 함수 가져오기
   const { warehouses, loading: warehousesLoading, getWarehouseName } = useWarehouses()
@@ -840,9 +843,12 @@ function HomeContent() {
     setHistoryItem({ itemCode, itemName })
     setHistoryData([])
     setHistoryLoading(true)
+    setHistoryFilter('전체')
+    setHistoryDateFrom(undefined)
+    setHistoryDateTo(undefined)
 
     try {
-      const res = await fetch(`/api/transaction/history?itemCode=${encodeURIComponent(itemCode)}&limit=50`)
+      const res = await fetch(`/api/transaction/history?itemCode=${encodeURIComponent(itemCode)}&limit=100`)
       const data = await res.json()
       if (data.success) {
         setHistoryData(data.items)
@@ -853,6 +859,28 @@ function HomeContent() {
       setHistoryLoading(false)
     }
   }
+
+  // 수불 내역 필터링
+  const filteredHistoryData = historyData.filter((h) => {
+    // 카테고리 필터
+    if (historyFilter !== '전체') {
+      if (historyFilter === '이동' && !h.category.includes('이동')) return false
+      if (historyFilter !== '이동' && h.category !== historyFilter) return false
+    }
+    // 날짜 필터
+    const itemDate = new Date(h.subulTime)
+    if (historyDateFrom) {
+      const fromDate = new Date(historyDateFrom)
+      fromDate.setHours(0, 0, 0, 0)
+      if (itemDate < fromDate) return false
+    }
+    if (historyDateTo) {
+      const toDate = new Date(historyDateTo)
+      toDate.setHours(23, 59, 59, 999)
+      if (itemDate > toDate) return false
+    }
+    return true
+  })
 
   // 이동 모달 위치 선택 핸들러
   const handleMoveSelectLocation = (suggestion: LocationSuggestion) => {
@@ -1842,29 +1870,101 @@ function HomeContent() {
 
       {/* 수불 내역 모달 */}
       <Dialog open={!!historyItem} onOpenChange={(open) => !open && setHistoryItem(null)}>
-        <DialogContent className="rounded-2xl max-w-md max-h-[80vh] flex flex-col">
+        <DialogContent className="rounded-2xl max-w-md max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">수불 내역</DialogTitle>
             {historyItem && (
               <div className="text-sm text-muted-foreground">
                 <span className="font-semibold text-primary">{historyItem.itemCode}</span>
-                <span className="ml-2">{historyItem.itemName}</span>
+                <span className="ml-2 truncate">{historyItem.itemName}</span>
               </div>
             )}
           </DialogHeader>
+
+          {/* 필터 영역 */}
+          <div className="space-y-2 pb-2 border-b border-border">
+            {/* 카테고리 필터 */}
+            <div className="flex flex-wrap gap-1">
+              {['전체', '입고', '출고', '이동', '수정'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setHistoryFilter(cat)}
+                  className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                    historyFilter === cat
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-accent text-muted-foreground hover:bg-accent/80'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            {/* 날짜 필터 */}
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs flex-1">
+                    <CalendarIcon className="w-3 h-3 mr-1" />
+                    {historyDateFrom ? format(historyDateFrom, 'yy.MM.dd') : '시작일'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={historyDateFrom}
+                    onSelect={setHistoryDateFrom}
+                    locale={ko}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-muted-foreground text-xs">~</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs flex-1">
+                    <CalendarIcon className="w-3 h-3 mr-1" />
+                    {historyDateTo ? format(historyDateTo, 'yy.MM.dd') : '종료일'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={historyDateTo}
+                    onSelect={setHistoryDateTo}
+                    locale={ko}
+                  />
+                </PopoverContent>
+              </Popover>
+              {(historyDateFrom || historyDateTo) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => {
+                    setHistoryDateFrom(undefined)
+                    setHistoryDateTo(undefined)
+                  }}
+                >
+                  <XCircle className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
 
           <div className="flex-1 overflow-y-auto -mx-6 px-6">
             {historyLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-            ) : historyData.length === 0 ? (
+            ) : filteredHistoryData.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                수불 내역이 없습니다.
+                {historyData.length === 0 ? '수불 내역이 없습니다.' : '조건에 맞는 내역이 없습니다.'}
               </div>
             ) : (
-              <div className="space-y-2 pb-4">
-                {historyData.map((h) => (
+              <div className="space-y-2 py-2">
+                <div className="text-xs text-muted-foreground mb-2">
+                  {filteredHistoryData.length}건
+                </div>
+                {filteredHistoryData.map((h) => (
                   <div key={h.id} className="p-3 bg-accent/50 rounded-lg">
                     <div className="flex items-center justify-between">
                       <span className={`text-sm font-semibold ${
