@@ -1355,7 +1355,7 @@ function HomeContent() {
             {items.map((item) => (
               <Card key={item.id} className="border-0 shadow-sm overflow-hidden bg-card">
                 <CardContent className="p-0">
-                  <div className="p-3">
+                  <div className="px-3 py-2">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <p
@@ -1364,9 +1364,9 @@ function HomeContent() {
                         >
                           {item.itemCode}
                         </p>
-                        <p className="text-muted-foreground mt-0.5 text-xs truncate">{item.itemName}</p>
+                        <p className="text-muted-foreground text-xs truncate">{item.itemName}</p>
 
-                        <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
                             {item.location}
@@ -1395,7 +1395,7 @@ function HomeContent() {
                   <div className="flex border-t border-border">
                     <button
                       onClick={() => openOutboundModal(item)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium text-orange-600 dark:text-orange-400 hover:bg-accent transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-orange-600 dark:text-orange-400 hover:bg-accent transition-colors"
                     >
                       <ArrowUpFromLine className="w-4 h-4" />
                       출고
@@ -1403,7 +1403,7 @@ function HomeContent() {
                     <div className="w-px bg-border" />
                     <button
                       onClick={() => openMoveModal(item)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium text-teal-600 dark:text-teal-400 hover:bg-accent transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:bg-accent transition-colors"
                     >
                       <MoveRight className="w-4 h-4" />
                       이동
@@ -1411,7 +1411,7 @@ function HomeContent() {
                     <div className="w-px bg-border" />
                     <button
                       onClick={() => openEditModal(item)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
                     >
                       <Pencil className="w-4 h-4" />
                       수정
