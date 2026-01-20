@@ -150,7 +150,10 @@ function TransactionInContent() {
         const data = await res.json()
         if (data.success) {
           setLocationSuggestions(data.locations)
-          setShowLocationSuggestions(data.locations.length > 0)
+          // URL 파라미터로 들어온 경우 자동완성 표시 안함
+          if (!prefilledLocation) {
+            setShowLocationSuggestions(data.locations.length > 0)
+          }
         }
       } catch (error) {
         console.error('Location autocomplete error:', error)
@@ -159,7 +162,7 @@ function TransactionInContent() {
 
     const debounce = setTimeout(fetchLocationSuggestions, 150)
     return () => clearTimeout(debounce)
-  }, [formData.location])
+  }, [formData.location, prefilledLocation])
 
   // 품목코드 자동완성 검색
   useEffect(() => {
@@ -234,6 +237,10 @@ function TransactionInContent() {
     }
     if (name === 'location') {
       setLocationSelectedIndex(-1)
+      // URL 파라미터로 들어온 경우 사용자가 입력 시작하면 초기화
+      if (prefilledLocation) {
+        setPrefilledLocation(null)
+      }
     }
   }
 
