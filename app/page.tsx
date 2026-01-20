@@ -55,6 +55,19 @@ interface LocationSuggestion {
   storage: string
 }
 
+interface HistoryItem {
+  id: number
+  storage: string
+  location: string
+  itemCode: string
+  itemName: string
+  qty: number
+  category: string
+  subulTime: string
+  remark: string | null
+  user: string
+}
+
 function HomeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -144,6 +157,11 @@ function HomeContent() {
   const [moveExpandedHint, setMoveExpandedHint] = useState<string | null>(null)
   const moveLocationInputRef = useRef<HTMLInputElement>(null)
   const moveLocationSuggestionsRef = useRef<HTMLDivElement>(null)
+
+  // 수불 내역 모달 상태
+  const [historyItem, setHistoryItem] = useState<{ itemCode: string; itemName: string } | null>(null)
+  const [historyData, setHistoryData] = useState<HistoryItem[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   // 창고 컨텍스트에서 창고 목록 및 이름 조회 함수 가져오기
   const { warehouses, loading: warehousesLoading, getWarehouseName } = useWarehouses()
@@ -817,6 +835,25 @@ function HomeContent() {
     setMoveExpandedHint(null)
   }
 
+  // 수불 내역 모달 열기
+  const openHistoryModal = async (itemCode: string, itemName: string) => {
+    setHistoryItem({ itemCode, itemName })
+    setHistoryData([])
+    setHistoryLoading(true)
+
+    try {
+      const res = await fetch(`/api/transaction/history?itemCode=${encodeURIComponent(itemCode)}&limit=50`)
+      const data = await res.json()
+      if (data.success) {
+        setHistoryData(data.items)
+      }
+    } catch (error) {
+      console.error('History fetch error:', error)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
   // 이동 모달 위치 선택 핸들러
   const handleMoveSelectLocation = (suggestion: LocationSuggestion) => {
     setMoveForm(prev => ({
@@ -1293,7 +1330,12 @@ function HomeContent() {
                   <div className="p-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-foreground text-base">{item.itemCode}</p>
+                        <p
+                          className="font-bold text-primary text-base cursor-pointer hover:underline"
+                          onClick={() => openHistoryModal(item.itemCode, item.itemName)}
+                        >
+                          {item.itemCode}
+                        </p>
                         <p className="text-muted-foreground mt-0.5 text-xs truncate">{item.itemName}</p>
 
                         <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
@@ -1797,6 +1839,83 @@ function HomeContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 수불 내역 모달 */}
+      <Dialog open={!!historyItem} onOpenChange={(open) => !open && setHistoryItem(null)}>
+        <DialogContent className="rounded-2xl max-w-md max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">수불 내역</DialogTitle>
+            {historyItem && (
+              <div className="text-sm text-muted-foreground">
+                <span className="font-semibold text-primary">{historyItem.itemCode}</span>
+                <span className="ml-2">{historyItem.itemName}</span>
+              </div>
+            )}
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : historyData.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                수불 내역이 없습니다.
+              </div>
+            ) : (
+              <div className="space-y-2 pb-4">
+                {historyData.map((h) => (
+                  <div key={h.id} className="p-3 bg-accent/50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-semibold ${
+                        h.category === '입고' ? 'text-green-600' :
+                        h.category === '출고' ? 'text-red-600' :
+                        h.category.includes('이동') ? 'text-blue-600' :
+                        h.category === '수정' ? 'text-orange-600' :
+                        'text-foreground'
+                      }`}>
+                        {h.category}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(h.subulTime).toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-muted-foreground">
+                        {h.storage} · {h.location}
+                      </span>
+                      <span className="text-sm font-bold">
+                        {h.category === '출고' ? '-' : h.category === '입고' ? '+' : ''}{h.qty}개
+                      </span>
+                    </div>
+                    {h.user && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        작업자: {h.user}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setHistoryItem(null)}
+              className="w-full"
+            >
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
