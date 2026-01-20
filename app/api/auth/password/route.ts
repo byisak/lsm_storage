@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { executeQuery, executeUpdate, LsUser } from '@/lib/mysql'
+import { verifyPassword } from '@/lib/password'
 
 // 비밀번호 변경
 export async function PUT(request: NextRequest) {
@@ -39,8 +40,8 @@ export async function PUT(request: NextRequest) {
 
     const user = users[0]
 
-    // 현재 비밀번호 검증
-    const isValidPassword = await bcrypt.compare(currentPassword, user.PASSWORD)
+    // 현재 비밀번호 검증 (scrypt/bcrypt 자동 감지)
+    const isValidPassword = await verifyPassword(currentPassword, user.PASSWORD)
     if (!isValidPassword) {
       return NextResponse.json(
         { success: false, message: '현재 비밀번호가 올바르지 않습니다.' },
