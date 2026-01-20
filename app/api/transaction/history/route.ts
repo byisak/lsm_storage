@@ -16,30 +16,56 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const itemCode = searchParams.get('itemCode')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const category = searchParams.get('category')
+    const dateFrom = searchParams.get('dateFrom')
+    const dateTo = searchParams.get('dateTo')
+    const limit = parseInt(searchParams.get('limit') || '500')
 
     let sql: string
     const binds: Record<string, unknown> = {}
+    const conditions: string[] = []
 
     if (isMultiTenantEnabled()) {
       // 멀티테넌트: 회사별 필터링
       sql = `SELECT idx, storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user
-             FROM ls_motor_subul WHERE COMPANY_ID = :companyId`
+             FROM ls_motor_subul`
+      conditions.push('COMPANY_ID = :companyId')
       binds.companyId = session.companyId
-
-      if (itemCode) {
-        sql += ` AND UPPER(itemCode) LIKE UPPER(:itemCode)`
-        binds.itemCode = `%${itemCode.trim()}%`
-      }
     } else {
       // 단일 테넌트: 기존 방식
       sql = `SELECT idx, storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user
              FROM ls_motor_subul`
+    }
 
-      if (itemCode) {
-        sql += ` WHERE UPPER(itemCode) LIKE UPPER(:itemCode)`
-        binds.itemCode = `%${itemCode.trim()}%`
+    // 품목코드 필터
+    if (itemCode) {
+      conditions.push(`UPPER(itemCode) LIKE UPPER(:itemCode)`)
+      binds.itemCode = `%${itemCode.trim()}%`
+    }
+
+    // 카테고리 필터
+    if (category && category !== '전체') {
+      if (category === '이동') {
+        conditions.push(`Category LIKE '%이동%'`)
+      } else {
+        conditions.push(`Category = :category`)
+        binds.category = category
       }
+    }
+
+    // 날짜 필터
+    if (dateFrom) {
+      conditions.push(`Subul_Time >= :dateFrom`)
+      binds.dateFrom = dateFrom
+    }
+    if (dateTo) {
+      conditions.push(`Subul_Time <= :dateTo`)
+      binds.dateTo = dateTo + ' 23:59:59'
+    }
+
+    // WHERE 절 추가
+    if (conditions.length > 0) {
+      sql += ` WHERE ` + conditions.join(' AND ')
     }
 
     // MySQL uses LIMIT (not FETCH FIRST)

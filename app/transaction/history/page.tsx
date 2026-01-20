@@ -35,12 +35,16 @@ export default function TransactionHistoryPage() {
     fetchHistory()
   }, [])
 
-  const fetchHistory = async (itemCode?: string) => {
+  const fetchHistory = async (itemCode?: string, category?: string, from?: Date, to?: Date) => {
     setLoading(true)
     try {
-      const url = itemCode
-        ? `/api/transaction/history?itemCode=${encodeURIComponent(itemCode)}`
-        : '/api/transaction/history'
+      const params = new URLSearchParams()
+      if (itemCode) params.set('itemCode', itemCode)
+      if (category && category !== '전체') params.set('category', category)
+      if (from) params.set('dateFrom', format(from, 'yyyy-MM-dd'))
+      if (to) params.set('dateTo', format(to, 'yyyy-MM-dd'))
+
+      const url = `/api/transaction/history${params.toString() ? '?' + params.toString() : ''}`
       const res = await fetch(url)
       const data = await res.json()
       if (data.success) {
@@ -54,7 +58,7 @@ export default function TransactionHistoryPage() {
   }
 
   const handleSearch = () => {
-    fetchHistory(query || undefined)
+    fetchHistory(query || undefined, categoryFilter, dateFrom, dateTo)
   }
 
   const formatDateTime = (dateString: string) => {
@@ -89,27 +93,7 @@ export default function TransactionHistoryPage() {
     return remark
   }
 
-  // 필터링된 데이터
-  const filteredItems = items.filter((item) => {
-    // 카테고리 필터
-    if (categoryFilter !== '전체') {
-      if (categoryFilter === '이동' && !item.category.includes('이동')) return false
-      if (categoryFilter !== '이동' && item.category !== categoryFilter) return false
-    }
-    // 날짜 필터
-    const itemDate = new Date(item.subulTime)
-    if (dateFrom) {
-      const fromDate = new Date(dateFrom)
-      fromDate.setHours(0, 0, 0, 0)
-      if (itemDate < fromDate) return false
-    }
-    if (dateTo) {
-      const toDate = new Date(dateTo)
-      toDate.setHours(23, 59, 59, 999)
-      if (itemDate > toDate) return false
-    }
-    return true
-  })
+  // 서버에서 필터링하므로 items를 직접 사용
 
   return (
     <div className="p-4">
@@ -205,7 +189,7 @@ export default function TransactionHistoryPage() {
           <Button
             size="sm"
             className="h-8 px-4"
-            onClick={() => fetchHistory(query || undefined)}
+            onClick={handleSearch}
             disabled={loading}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
@@ -213,7 +197,7 @@ export default function TransactionHistoryPage() {
         </div>
         {/* 결과 카운트 */}
         <div className="text-xs text-muted-foreground">
-          {filteredItems.length}건
+          {items.length}건
         </div>
       </div>
 
@@ -226,7 +210,7 @@ export default function TransactionHistoryPage() {
 
       {/* Results List */}
       <div className="space-y-3">
-        {filteredItems.map((item) => {
+        {items.map((item) => {
           const isIn = item.category === '입고' || item.category === '이동(입)'
           const isEdit = item.category.includes('수정')
           const isMove = item.category.includes('이동')
@@ -305,7 +289,7 @@ export default function TransactionHistoryPage() {
       </div>
 
       {/* Empty State */}
-      {filteredItems.length === 0 && !loading && (
+      {items.length === 0 && !loading && (
         <div className="text-center py-12">
           <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
             <ClipboardX className="w-8 h-8 text-muted-foreground" />
