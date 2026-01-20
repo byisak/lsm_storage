@@ -1885,43 +1885,58 @@ function HomeContent() {
 
       {/* 수불 내역 모달 */}
       <Dialog open={!!historyItem} onOpenChange={(open) => !open && setHistoryItem(null)}>
-        <DialogContent className="rounded-2xl max-w-md max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold">수불 내역</DialogTitle>
+        <DialogContent className="rounded-2xl max-w-sm max-h-[85vh] flex flex-col p-4">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-base font-bold">수불 내역</DialogTitle>
             {historyItem && (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs text-muted-foreground truncate">
                 <span className="font-semibold text-primary">{historyItem.itemCode}</span>
-                <span className="ml-2 truncate">{historyItem.itemName}</span>
+                <span className="ml-1.5">{historyItem.itemName}</span>
               </div>
             )}
           </DialogHeader>
 
           {/* 필터 영역 */}
           <div className="space-y-2 pb-2 border-b border-border">
-            {/* 카테고리 필터 */}
-            <div className="flex flex-wrap gap-1">
-              {['전체', '입고', '출고', '이동', '수정'].map((cat) => (
+            {/* 카테고리 + 날짜 필터 한 줄 */}
+            <div className="flex items-center justify-between gap-2">
+              {/* 카테고리 필터 */}
+              <div className="flex gap-0.5 flex-shrink-0">
+                {['전체', '입고', '출고', '이동', '수정'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setHistoryFilter(cat)}
+                    className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+                      historyFilter === cat
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-accent text-muted-foreground'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              {/* 날짜 초기화 버튼 */}
+              {(historyDateFrom || historyDateTo) && (
                 <button
-                  key={cat}
-                  onClick={() => setHistoryFilter(cat)}
-                  className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
-                    historyFilter === cat
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-accent text-muted-foreground hover:bg-accent/80'
-                  }`}
+                  onClick={() => {
+                    setHistoryDateFrom(undefined)
+                    setHistoryDateTo(undefined)
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
                 >
-                  {cat}
+                  <XCircle className="w-4 h-4" />
                 </button>
-              ))}
+              )}
             </div>
             {/* 날짜 필터 */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs flex-1">
-                    <CalendarIcon className="w-3 h-3 mr-1" />
+                  <button className="flex-1 h-7 px-2 text-[11px] bg-accent rounded flex items-center justify-center gap-1">
+                    <CalendarIcon className="w-3 h-3" />
                     {historyDateFrom ? format(historyDateFrom, 'yy.MM.dd') : '시작일'}
-                  </Button>
+                  </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
@@ -1932,13 +1947,13 @@ function HomeContent() {
                   />
                 </PopoverContent>
               </Popover>
-              <span className="text-muted-foreground text-xs">~</span>
+              <span className="text-muted-foreground text-[10px]">~</span>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs flex-1">
-                    <CalendarIcon className="w-3 h-3 mr-1" />
+                  <button className="flex-1 h-7 px-2 text-[11px] bg-accent rounded flex items-center justify-center gap-1">
+                    <CalendarIcon className="w-3 h-3" />
                     {historyDateTo ? format(historyDateTo, 'yy.MM.dd') : '종료일'}
-                  </Button>
+                  </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
                   <Calendar
@@ -1949,40 +1964,27 @@ function HomeContent() {
                   />
                 </PopoverContent>
               </Popover>
-              {(historyDateFrom || historyDateTo) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2"
-                  onClick={() => {
-                    setHistoryDateFrom(undefined)
-                    setHistoryDateTo(undefined)
-                  }}
-                >
-                  <XCircle className="w-4 h-4" />
-                </Button>
-              )}
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+          <div className="flex-1 overflow-y-auto -mx-4 px-4 mt-2">
             {historyLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
             ) : filteredHistoryData.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-6 text-muted-foreground text-sm">
                 {historyData.length === 0 ? '수불 내역이 없습니다.' : '조건에 맞는 내역이 없습니다.'}
               </div>
             ) : (
-              <div className="space-y-2 py-2">
-                <div className="text-xs text-muted-foreground mb-2">
+              <div className="space-y-1.5">
+                <div className="text-[10px] text-muted-foreground">
                   {filteredHistoryData.length}건
                 </div>
                 {filteredHistoryData.map((h) => (
-                  <div key={h.id} className="p-3 bg-accent/50 rounded-lg">
+                  <div key={h.id} className="p-2.5 bg-accent/50 rounded-lg">
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm font-semibold ${
+                      <span className={`text-xs font-semibold ${
                         h.category === '입고' ? 'text-green-600' :
                         h.category === '출고' ? 'text-red-600' :
                         h.category.includes('이동') ? 'text-blue-600' :
@@ -1991,9 +1993,8 @@ function HomeContent() {
                       }`}>
                         {h.category}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground">
                         {new Date(h.subulTime).toLocaleDateString('ko-KR', {
-                          year: 'numeric',
                           month: '2-digit',
                           day: '2-digit',
                           hour: '2-digit',
@@ -2001,30 +2002,25 @@ function HomeContent() {
                         })}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs text-muted-foreground">
-                        {h.storage} · {h.location}
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="text-[10px] text-muted-foreground">
+                        {h.location}
                       </span>
-                      <span className="text-sm font-bold">
+                      <span className="text-xs font-bold">
                         {h.category === '출고' ? '-' : h.category === '입고' ? '+' : ''}{h.qty}개
                       </span>
                     </div>
-                    {h.user && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        작업자: {h.user}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mt-2">
             <Button
               variant="outline"
               onClick={() => setHistoryItem(null)}
-              className="w-full"
+              className="w-full h-9 text-sm"
             >
               닫기
             </Button>
