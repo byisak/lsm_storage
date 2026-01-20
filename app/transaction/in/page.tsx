@@ -90,6 +90,7 @@ function TransactionInContent() {
   const [recentItems, setRecentItems] = useState<AutocompleteItem[]>([])
   const [showRecentLocations, setShowRecentLocations] = useState(false)
   const [showRecentItems, setShowRecentItems] = useState(false)
+  const [skipItemAutocomplete, setSkipItemAutocomplete] = useState(false)
   const recentLocationsRef = useRef<HTMLDivElement>(null)
   const recentItemsRef = useRef<HTMLDivElement>(null)
 
@@ -177,7 +178,10 @@ function TransactionInContent() {
         const data = await res.json()
         if (data.success) {
           setSuggestions(data.items)
-          setShowSuggestions(data.items.length > 0)
+          // 최근 품목에서 선택한 경우 자동완성 표시 안함
+          if (!skipItemAutocomplete) {
+            setShowSuggestions(data.items.length > 0)
+          }
         }
       } catch (error) {
         console.error('Autocomplete error:', error)
@@ -186,7 +190,7 @@ function TransactionInContent() {
 
     const debounce = setTimeout(fetchSuggestions, 150)
     return () => clearTimeout(debounce)
-  }, [formData.itemCode])
+  }, [formData.itemCode, skipItemAutocomplete])
 
   // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
@@ -234,6 +238,10 @@ function TransactionInContent() {
     setFormData((prev) => ({ ...prev, [name]: value }))
     if (name === 'itemCode') {
       setSelectedIndex(-1)
+      // 최근 품목에서 선택 후 사용자가 입력 시작하면 자동완성 다시 활성화
+      if (skipItemAutocomplete) {
+        setSkipItemAutocomplete(false)
+      }
     }
     if (name === 'location') {
       setLocationSelectedIndex(-1)
@@ -270,6 +278,7 @@ function TransactionInContent() {
   // 최근 품목 선택
   const handleSelectRecentItem = (e: React.MouseEvent, item: AutocompleteItem) => {
     e.stopPropagation()
+    setSkipItemAutocomplete(true)
     setFormData((prev) => ({
       ...prev,
       itemCode: item.itemCode,
