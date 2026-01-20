@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, ArrowDownToLine, ArrowUpFromLine, MapPin, Warehouse, User, Loader2, ClipboardX, Pencil, MoveRight } from 'lucide-react'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Search, ArrowDownToLine, ArrowUpFromLine, MapPin, Warehouse, User, Loader2, ClipboardX, Pencil, MoveRight, Calendar as CalendarIcon, XCircle } from 'lucide-react'
+import { format } from 'date-fns'
+import { ko } from 'date-fns/locale'
 
 interface SubulItem {
   id: number
@@ -23,6 +27,9 @@ export default function TransactionHistoryPage() {
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<SubulItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState<string>('전체')
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined)
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined)
 
   useEffect(() => {
     fetchHistory()
@@ -82,10 +89,32 @@ export default function TransactionHistoryPage() {
     return remark
   }
 
+  // 필터링된 데이터
+  const filteredItems = items.filter((item) => {
+    // 카테고리 필터
+    if (categoryFilter !== '전체') {
+      if (categoryFilter === '이동' && !item.category.includes('이동')) return false
+      if (categoryFilter !== '이동' && item.category !== categoryFilter) return false
+    }
+    // 날짜 필터
+    const itemDate = new Date(item.subulTime)
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom)
+      fromDate.setHours(0, 0, 0, 0)
+      if (itemDate < fromDate) return false
+    }
+    if (dateTo) {
+      const toDate = new Date(dateTo)
+      toDate.setHours(23, 59, 59, 999)
+      if (itemDate > toDate) return false
+    }
+    return true
+  })
+
   return (
     <div className="p-4">
       {/* Search Header */}
-      <div className="mb-5">
+      <div className="mb-4">
         <h2 className="text-lg font-bold text-foreground mb-3">수불 이력</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -107,6 +136,79 @@ export default function TransactionHistoryPage() {
         </div>
       </div>
 
+      {/* 필터 영역 */}
+      <div className="mb-4 space-y-2">
+        {/* 카테고리 필터 */}
+        <div className="flex flex-wrap gap-1.5">
+          {['전체', '입고', '출고', '이동', '수정'].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                categoryFilter === cat
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-accent text-muted-foreground hover:bg-accent/80'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+        {/* 날짜 필터 */}
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 text-xs flex-1">
+                <CalendarIcon className="w-3 h-3 mr-1" />
+                {dateFrom ? format(dateFrom, 'yy.MM.dd') : '시작일'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateFrom}
+                onSelect={setDateFrom}
+                locale={ko}
+              />
+            </PopoverContent>
+          </Popover>
+          <span className="text-muted-foreground text-xs">~</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 text-xs flex-1">
+                <CalendarIcon className="w-3 h-3 mr-1" />
+                {dateTo ? format(dateTo, 'yy.MM.dd') : '종료일'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={dateTo}
+                onSelect={setDateTo}
+                locale={ko}
+              />
+            </PopoverContent>
+          </Popover>
+          {(dateFrom || dateTo) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2"
+              onClick={() => {
+                setDateFrom(undefined)
+                setDateTo(undefined)
+              }}
+            >
+              <XCircle className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+        {/* 결과 카운트 */}
+        <div className="text-xs text-muted-foreground">
+          {filteredItems.length}건
+        </div>
+      </div>
+
       {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center py-12">
@@ -116,7 +218,7 @@ export default function TransactionHistoryPage() {
 
       {/* Results List */}
       <div className="space-y-3">
-        {items.map((item) => {
+        {filteredItems.map((item) => {
           const isIn = item.category === '입고' || item.category === '이동(입)'
           const isEdit = item.category.includes('수정')
           const isMove = item.category.includes('이동')
@@ -195,13 +297,17 @@ export default function TransactionHistoryPage() {
       </div>
 
       {/* Empty State */}
-      {items.length === 0 && !loading && (
+      {filteredItems.length === 0 && !loading && (
         <div className="text-center py-12">
           <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
             <ClipboardX className="w-8 h-8 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground font-medium">수불 이력이 없습니다</p>
-          <p className="text-muted-foreground/70 text-sm mt-1">입출고 처리 후 이력이 표시됩니다</p>
+          <p className="text-muted-foreground font-medium">
+            {items.length === 0 ? '수불 이력이 없습니다' : '조건에 맞는 이력이 없습니다'}
+          </p>
+          <p className="text-muted-foreground/70 text-sm mt-1">
+            {items.length === 0 ? '입출고 처리 후 이력이 표시됩니다' : '필터 조건을 변경해 보세요'}
+          </p>
         </div>
       )}
     </div>
