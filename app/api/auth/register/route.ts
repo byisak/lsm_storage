@@ -94,10 +94,11 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // 회원 등록 (COMPANY_ID 포함)
+    // STATUS: 0=PENDING, 1=APPROVED, 2=REJECTED
     if (isMultiTenantEnabled()) {
       await executeInsert(
         `INSERT INTO ls_users (NAME, EMAIL, PASSWORD, STATUS, ROLE, COMPANY_ID)
-         VALUES (:name, :email, :password, 'PENDING', 'USER', :companyId)`,
+         VALUES (:name, :email, :password, 0, 'USER', :companyId)`,
         {
           name: name.trim(),
           email: email.toLowerCase().trim(),
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
     } else {
       await executeInsert(
         `INSERT INTO ls_users (NAME, EMAIL, PASSWORD, STATUS, ROLE)
-         VALUES (:name, :email, :password, 'PENDING', 'USER')`,
+         VALUES (:name, :email, :password, 0, 'USER')`,
         {
           name: name.trim(),
           email: email.toLowerCase().trim(),
