@@ -157,8 +157,50 @@ function HomeContent() {
     if (warehousesLoading) return
 
     const scanParam = searchParams.get('scan')
+    const qParam = searchParams.get('q') // QR 전체 값 (예: 03|A-03-B2)
     const rackSearchParam = searchParams.get('rackSearch')
     const storageIdParam = searchParams.get('storageId')
+
+    // q 파라미터 처리 (QR 전체 값: 03|A-03-B2)
+    if (qParam && qParam.includes('|')) {
+      const [storageId, locationPart] = qParam.split('|')
+      setActiveTab('rack')
+      setQuery(locationPart)
+
+      const doQSearch = async () => {
+        setHasSearched(true)
+        setShowLocationSuggestions(false)
+        setLocationSuggestions([])
+        setLoading(true)
+        setSearched(true)
+
+        try {
+          const location = expandLocation(locationPart)
+          setCurrentSearchQuery(location)
+          addRackSearchHistory(locationPart)
+          setRackSearchHistory(getRackSearchHistory())
+
+          // 창고ID 포함해서 검색
+          const url = `/api/rack/search?location=${encodeURIComponent(location)}&storage=${encodeURIComponent(storageId)}`
+          const res = await fetch(url)
+          const data = await res.json()
+          if (data.success) {
+            setItems(data.items)
+            if (data.storage) {
+              setSearchedLocation({ storage: data.storage, location: location })
+            }
+          }
+        } catch (error) {
+          console.error('Q param search error:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      doQSearch()
+      router.replace('/', { scroll: false })
+      return
+    }
 
     // rackSearch 파라미터 처리 (QR 스캔 후 위치 검색)
     if (rackSearchParam) {
