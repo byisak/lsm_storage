@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, User, Mail, Lock, Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, User, Mail, Lock, Eye, EyeOff, CheckCircle2, XCircle, Loader2, ScanLine, Settings } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { useSettings } from '@/lib/settings-context'
+import { Switch } from '@/components/ui/switch'
 
 export default function ProfilePage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { settings, updateSettings } = useSettings()
 
   // 비밀번호 변경 상태
   const [currentPassword, setCurrentPassword] = useState('')
@@ -135,6 +138,35 @@ export default function ProfilePage() {
                 <p className="text-xs text-muted-foreground">이메일</p>
                 <p className="text-sm font-medium text-foreground">{user.email}</p>
               </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 앱 설정 */}
+      <Card className="border-0 shadow-sm mb-6">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Settings className="w-5 h-5 text-primary" />
+            <h3 className="font-bold text-foreground">앱 설정</h3>
+          </div>
+
+          <div className="space-y-4">
+            {/* QR 스캔 버튼 표시 */}
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <ScanLine className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">QR 스캔 버튼</p>
+                  <p className="text-xs text-muted-foreground">하단 탭에 QR 스캔 버튼을 표시합니다</p>
+                </div>
+              </div>
+              <Switch
+                checked={settings.showQrScanButton}
+                onCheckedChange={(checked) => updateSettings({ showQrScanButton: checked })}
+              />
             </div>
           </div>
         </CardContent>

@@ -32,6 +32,9 @@ interface UndoMeta {
   toLocation?: string
   isMerge?: boolean
   targetBeforeQty?: number
+  // 복원용 정보
+  inDay?: string
+  originalRemark?: string
 }
 
 // remark에서 undoMeta 파싱

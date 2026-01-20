@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { AuthProvider } from "@/lib/auth-context";
 import { WarehouseProvider } from "@/lib/warehouse-context";
+import { SettingsProvider } from "@/lib/settings-context";
 import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 
 export const metadata: Metadata = {
@@ -40,11 +41,13 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <WarehouseProvider>
-              <LayoutWrapper>
-                {children}
-              </LayoutWrapper>
-            </WarehouseProvider>
+            <SettingsProvider>
+              <WarehouseProvider>
+                <LayoutWrapper>
+                  {children}
+                </LayoutWrapper>
+              </WarehouseProvider>
+            </SettingsProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
