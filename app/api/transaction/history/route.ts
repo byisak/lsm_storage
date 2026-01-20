@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const dateFrom = searchParams.get('dateFrom')
     const dateTo = searchParams.get('dateTo')
-    const limit = parseInt(searchParams.get('limit') || '500')
+    const limit = parseInt(searchParams.get('limit') || '20')
+    const offset = parseInt(searchParams.get('offset') || '0')
 
     let sql: string
     const binds: Record<string, unknown> = {}
@@ -68,8 +69,10 @@ export async function GET(request: NextRequest) {
       sql += ` WHERE ` + conditions.join(' AND ')
     }
 
-    // MySQL uses LIMIT (not FETCH FIRST)
-    sql += ` ORDER BY Subul_Time DESC LIMIT ${Math.min(Math.max(1, limit), 1000)}`
+    // MySQL uses LIMIT with OFFSET for pagination
+    const safeLimit = Math.min(Math.max(1, limit), 100)
+    const safeOffset = Math.max(0, offset)
+    sql += ` ORDER BY Subul_Time DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`
 
     const items = await executeQuery<LsMotorSubul>(sql, binds)
 
@@ -91,6 +94,7 @@ export async function GET(request: NextRequest) {
       success: true,
       items: formattedItems,
       count: formattedItems.length,
+      hasMore: formattedItems.length === safeLimit, // 더 불러올 데이터가 있는지
     })
   } catch (error) {
     console.error('History error:', error)

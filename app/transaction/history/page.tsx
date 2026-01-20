@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Search, ArrowDownToLine, ArrowUpFromLine, MapPin, Warehouse, User, Loader2, ClipboardX, Pencil, MoveRight, Calendar as CalendarIcon, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+
+const PAGE_SIZE = 20
 
 interface AutocompleteItem {
   itemCode: string
@@ -32,6 +34,8 @@ export default function TransactionHistoryPage() {
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<SubulItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [categoryFilter, setCategoryFilter] = useState<string>('전체')
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined)
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined)
@@ -42,6 +46,7 @@ export default function TransactionHistoryPage() {
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const suggestionsRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const loaderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchHistory()
@@ -86,20 +91,27 @@ export default function TransactionHistoryPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const fetchHistory = async (itemCode?: string, category?: string, from?: Date, to?: Date) => {
-    setLoading(true)
+  const fetchHistory = async (itemCode?: string, category?: string, from?: Date, to?: Date, reset = true) => {
+    if (reset) {
+      setLoading(true)
+      setItems([])
+      setHasMore(true)
+    }
     try {
       const params = new URLSearchParams()
       if (itemCode) params.set('itemCode', itemCode)
       if (category && category !== '전체') params.set('category', category)
       if (from) params.set('dateFrom', format(from, 'yyyy-MM-dd'))
       if (to) params.set('dateTo', format(to, 'yyyy-MM-dd'))
+      params.set('limit', PAGE_SIZE.toString())
+      params.set('offset', '0')
 
-      const url = `/api/transaction/history${params.toString() ? '?' + params.toString() : ''}`
+      const url = `/api/transaction/history?${params.toString()}`
       const res = await fetch(url)
       const data = await res.json()
       if (data.success) {
         setItems(data.items)
+        setHasMore(data.hasMore)
       }
     } catch (error) {
       console.error('History error:', error)
@@ -107,6 +119,51 @@ export default function TransactionHistoryPage() {
       setLoading(false)
     }
   }
+
+  // 추가 데이터 로드 (무한 스크롤)
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return
+    setLoadingMore(true)
+    try {
+      const params = new URLSearchParams()
+      if (query) params.set('itemCode', query)
+      if (categoryFilter && categoryFilter !== '전체') params.set('category', categoryFilter)
+      if (dateFrom) params.set('dateFrom', format(dateFrom, 'yyyy-MM-dd'))
+      if (dateTo) params.set('dateTo', format(dateTo, 'yyyy-MM-dd'))
+      params.set('limit', PAGE_SIZE.toString())
+      params.set('offset', items.length.toString())
+
+      const url = `/api/transaction/history?${params.toString()}`
+      const res = await fetch(url)
+      const data = await res.json()
+      if (data.success) {
+        setItems(prev => [...prev, ...data.items])
+        setHasMore(data.hasMore)
+      }
+    } catch (error) {
+      console.error('Load more error:', error)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [loadingMore, hasMore, query, categoryFilter, dateFrom, dateTo, items.length])
+
+  // 무한 스크롤 감지 (IntersectionObserver)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          loadMore()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (loaderRef.current) {
+      observer.observe(loaderRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [hasMore, loading, loadingMore, loadMore])
 
   const handleSearch = () => {
     setShowSuggestions(false)
@@ -407,6 +464,20 @@ export default function TransactionHistoryPage() {
         })}
       </div>
 
+      {/* 무한 스크롤 로더 */}
+      {hasMore && items.length > 0 && (
+        <div ref={loaderRef} className="flex items-center justify-center py-6">
+          {loadingMore && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
+        </div>
+      )}
+
+      {/* 더 이상 데이터 없음 */}
+      {!hasMore && items.length > 0 && (
+        <div className="text-center py-4 text-xs text-muted-foreground">
+          모든 이력을 불러왔습니다
+        </div>
+      )}
+
       {/* Empty State */}
       {items.length === 0 && !loading && (
         <div className="text-center py-12">
@@ -414,10 +485,10 @@ export default function TransactionHistoryPage() {
             <ClipboardX className="w-8 h-8 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground font-medium">
-            {items.length === 0 ? '수불 이력이 없습니다' : '조건에 맞는 이력이 없습니다'}
+            수불 이력이 없습니다
           </p>
           <p className="text-muted-foreground/70 text-sm mt-1">
-            {items.length === 0 ? '입출고 처리 후 이력이 표시됩니다' : '필터 조건을 변경해 보세요'}
+            입출고 처리 후 이력이 표시됩니다
           </p>
         </div>
       )}
