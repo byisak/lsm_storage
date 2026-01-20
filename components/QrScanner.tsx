@@ -52,7 +52,7 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height)
 
-    // QR 코드 테두리 그리기 - 노란색
+    // QR 코드 테두리 그리기 - 노란색 선 + 반투명 채우기
     ctx.beginPath()
     ctx.moveTo(location.topLeftCorner.x, location.topLeftCorner.y)
     ctx.lineTo(location.topRightCorner.x, location.topRightCorner.y)
@@ -60,23 +60,14 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
     ctx.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y)
     ctx.closePath()
 
-    ctx.strokeStyle = '#facc15' // 노란색
+    // 반투명 노란색 채우기
+    ctx.fillStyle = 'rgba(250, 204, 21, 0.3)'
+    ctx.fill()
+
+    // 노란색 테두리
+    ctx.strokeStyle = '#facc15'
     ctx.lineWidth = 6
     ctx.stroke()
-
-    // 모서리 점 그리기
-    const corners = [
-      location.topLeftCorner,
-      location.topRightCorner,
-      location.bottomRightCorner,
-      location.bottomLeftCorner
-    ]
-    corners.forEach(corner => {
-      ctx.beginPath()
-      ctx.arc(corner.x, corner.y, 10, 0, 2 * Math.PI)
-      ctx.fillStyle = '#facc15'
-      ctx.fill()
-    })
   }, [])
 
   // Clear boundary
