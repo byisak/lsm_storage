@@ -146,32 +146,48 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
         canvas.height = video.videoHeight
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        let code = null
 
-        // 전체 이미지 스캔
-        let code = jsQR(imageData.data, imageData.width, imageData.height, {
+        // 1차: 중앙 50% 영역만 스캔 (십자가 근처)
+        const smallCropSize = Math.min(canvas.width, canvas.height) * 0.5
+        const smallCropX = (canvas.width - smallCropSize) / 2
+        const smallCropY = (canvas.height - smallCropSize) / 2
+        const smallData = ctx.getImageData(smallCropX, smallCropY, smallCropSize, smallCropSize)
+        code = jsQR(smallData.data, smallData.width, smallData.height, {
           inversionAttempts: 'attemptBoth',
         })
 
-        // 실패 시 중앙 크롭 후 재시도
-        if (!code && canvas.width > 400 && canvas.height > 400) {
-          const cropSize = Math.min(canvas.width, canvas.height) * 0.7
-          const cropX = (canvas.width - cropSize) / 2
-          const cropY = (canvas.height - cropSize) / 2
-          const croppedData = ctx.getImageData(cropX, cropY, cropSize, cropSize)
-          code = jsQR(croppedData.data, croppedData.width, croppedData.height, {
+        if (code && code.location) {
+          // 좌표 보정
+          code.location.topLeftCorner.x += smallCropX
+          code.location.topLeftCorner.y += smallCropY
+          code.location.topRightCorner.x += smallCropX
+          code.location.topRightCorner.y += smallCropY
+          code.location.bottomLeftCorner.x += smallCropX
+          code.location.bottomLeftCorner.y += smallCropY
+          code.location.bottomRightCorner.x += smallCropX
+          code.location.bottomRightCorner.y += smallCropY
+        }
+
+        // 2차: 실패 시 중앙 80% 영역 스캔
+        if (!code && canvas.width > 300 && canvas.height > 300) {
+          const largeCropSize = Math.min(canvas.width, canvas.height) * 0.8
+          const largeCropX = (canvas.width - largeCropSize) / 2
+          const largeCropY = (canvas.height - largeCropSize) / 2
+          const largeData = ctx.getImageData(largeCropX, largeCropY, largeCropSize, largeCropSize)
+          code = jsQR(largeData.data, largeData.width, largeData.height, {
             inversionAttempts: 'attemptBoth',
           })
 
           if (code && code.location) {
-            code.location.topLeftCorner.x += cropX
-            code.location.topLeftCorner.y += cropY
-            code.location.topRightCorner.x += cropX
-            code.location.topRightCorner.y += cropY
-            code.location.bottomLeftCorner.x += cropX
-            code.location.bottomLeftCorner.y += cropY
-            code.location.bottomRightCorner.x += cropX
-            code.location.bottomRightCorner.y += cropY
+            code.location.topLeftCorner.x += largeCropX
+            code.location.topLeftCorner.y += largeCropY
+            code.location.topRightCorner.x += largeCropX
+            code.location.topRightCorner.y += largeCropY
+            code.location.bottomLeftCorner.x += largeCropX
+            code.location.bottomLeftCorner.y += largeCropY
+            code.location.bottomRightCorner.x += largeCropX
+            code.location.bottomRightCorner.y += largeCropY
           }
         }
 
