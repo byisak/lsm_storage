@@ -144,9 +144,33 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
 
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
 
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: 'dontInvert',
+        // 다양한 inversion 시도로 인식률 향상
+        let code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'attemptBoth',  // 반전 이미지도 시도
         })
+
+        // 인식 실패 시 중앙 영역만 크롭해서 재시도
+        if (!code && canvas.width > 400 && canvas.height > 400) {
+          const cropSize = Math.min(canvas.width, canvas.height) * 0.7
+          const cropX = (canvas.width - cropSize) / 2
+          const cropY = (canvas.height - cropSize) / 2
+          const croppedData = ctx.getImageData(cropX, cropY, cropSize, cropSize)
+          code = jsQR(croppedData.data, croppedData.width, croppedData.height, {
+            inversionAttempts: 'attemptBoth',
+          })
+
+          // 크롭된 좌표를 원본 좌표로 변환
+          if (code && code.location) {
+            code.location.topLeftCorner.x += cropX
+            code.location.topLeftCorner.y += cropY
+            code.location.topRightCorner.x += cropX
+            code.location.topRightCorner.y += cropY
+            code.location.bottomLeftCorner.x += cropX
+            code.location.bottomLeftCorner.y += cropY
+            code.location.bottomRightCorner.x += cropX
+            code.location.bottomRightCorner.y += cropY
+          }
+        }
 
         if (code && code.data) {
           handleScan(code.data, code.location)
