@@ -200,8 +200,19 @@ export async function PUT(request: NextRequest) {
           ? updateData.nowQty - existingRack.nowQty
           : 0
 
-        // LSM_Warehouse_3D Remark 컬럼 길이 제한으로 100자로 자름
-        const truncatedRemark = changeDescription.substring(0, 100)
+        // 되돌리기용 메타데이터 (수정 전 값 저장)
+        const undoMeta = {
+          t: 'edit',
+          ic: existingRack.itemCode,
+          in: existingRack.itemName,
+          q: existingRack.nowQty,
+          d: existingRack.inDay ? new Date(existingRack.inDay).toISOString().split('T')[0] : null,
+          rm: existingRack.remark,
+          rid: existingRack.id,
+        }
+
+        // JSON + 변경사항 설명
+        const remarkWithMeta = JSON.stringify(undoMeta) + '|' + changeDescription.substring(0, 60)
 
         await connection.execute(
           `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
@@ -214,7 +225,7 @@ export async function PUT(request: NextRequest) {
             qty: Math.abs(qtyDiff) || 0,
             category: '수정',
             subulTime: now,
-            remark: truncatedRemark,
+            remark: remarkWithMeta,
             userId: user || 'mobile',
           },
           { autoCommit: false }
