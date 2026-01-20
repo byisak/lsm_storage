@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Mail, Lock, User, Loader2, AlertCircle, CheckCircle2, Box, Building2 } from 'lucide-react'
+import { Mail, Lock, User, Loader2, AlertCircle, CheckCircle2, Building2 } from 'lucide-react'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -92,7 +92,7 @@ export default function RegisterPage() {
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
         <div className="w-full max-w-sm">
           <Card className="border-0 shadow-lg">
-            <CardContent className="p-6 text-center">
+            <CardContent className="p-4 text-center">
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
               </div>
@@ -123,19 +123,16 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
+    <div className="min-h-screen flex flex-col items-center justify-center p-2 bg-background">
       <div className="w-full max-w-sm">
         {/* 로고 */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-900 rounded-2xl mb-4">
-            <Box className="w-8 h-8 text-white" />
-          </div>
+        <div className="text-center mb-4">
           <h1 className="text-2xl font-bold text-foreground">LS Mecapion</h1>
           <p className="text-muted-foreground text-sm mt-1">재고관리 시스템</p>
         </div>
 
         <Card className="border-0 shadow-lg">
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <h2 className="text-xl font-bold text-foreground mb-6 text-center">회원가입</h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
