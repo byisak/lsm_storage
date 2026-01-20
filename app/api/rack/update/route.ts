@@ -200,19 +200,16 @@ export async function PUT(request: NextRequest) {
           ? updateData.nowQty - existingRack.nowQty
           : 0
 
-        // 되돌리기용 메타데이터 (수정 전 값 저장)
+        // 되돌리기용 메타데이터 (최소한의 정보만 저장)
         const undoMeta = {
-          t: 'edit',
-          ic: existingRack.itemCode,
-          in: existingRack.itemName,
+          t: 'e',
           q: existingRack.nowQty,
           d: existingRack.inDay ? new Date(existingRack.inDay).toISOString().split('T')[0] : null,
-          rm: existingRack.remark,
           rid: existingRack.id,
         }
 
-        // JSON + 변경사항 설명
-        const remarkWithMeta = JSON.stringify(undoMeta) + '|' + changeDescription.substring(0, 60)
+        // JSON만 (100자 제한에 맞춤)
+        const remarkWithMeta = JSON.stringify(undoMeta)
 
         await connection.execute(
           `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
@@ -220,8 +217,8 @@ export async function PUT(request: NextRequest) {
           {
             storage: existingRack.storage,
             location: existingRack.location,
-            itemCode: updateData.itemCode || existingRack.itemCode,
-            itemName: updateData.itemName || existingRack.itemName,
+            itemCode: existingRack.itemCode,  // 수정 전 값 저장 (되돌리기용)
+            itemName: existingRack.itemName,  // 수정 전 값 저장 (되돌리기용)
             qty: Math.abs(qtyDiff) || 0,
             category: '수정',
             subulTime: now,

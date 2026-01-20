@@ -322,13 +322,13 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
 // 수정 취소 (원래 값으로 복원)
 async function undoEdit(subul: SubulRecord, meta: UndoMeta, now: Date, user: string) {
   await withTransaction(async (connection) => {
-    // 수정 전 값 가져오기
+    // 수정 전 값: subul record에 저장된 itemCode/itemName + meta의 qty/inDay
     const rackId = meta.rid
-    const prevItemCode = meta.ic
-    const prevItemName = meta.in
     const prevQty = meta.q
     const prevInDay = meta.d
-    const prevRemark = meta.rm
+    // subul record에 수정 전 itemCode/itemName이 저장됨
+    const prevItemCode = subul.itemCode
+    const prevItemName = subul.itemName
 
     if (!rackId) {
       throw new Error('수정 복구 정보가 불완전합니다. (rack ID 없음)')
@@ -344,17 +344,12 @@ async function undoEdit(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
       throw new Error('해당 재고를 찾을 수 없습니다. (이미 삭제됨)')
     }
 
-    // 원래 값으로 복원
+    // 원래 값으로 복원 (수량, 입고일만 - 품목코드/명은 변경 안 함)
     await connection.execute(
-      `UPDATE ls_motor_rack
-       SET itemCode = :itemCode, itemName = :itemName, Now_Qty = :nowQty, In_day = :inDay, Remark = :remark
-       WHERE idx = :id`,
+      `UPDATE ls_motor_rack SET Now_Qty = :nowQty, In_day = :inDay WHERE idx = :id`,
       {
-        itemCode: prevItemCode,
-        itemName: prevItemName,
         nowQty: prevQty,
         inDay: prevInDay ? new Date(prevInDay) : null,
-        remark: prevRemark ?? '',
         id: rackId,
       },
       { autoCommit: false }
