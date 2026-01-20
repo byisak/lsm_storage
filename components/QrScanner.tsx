@@ -328,9 +328,15 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
         #qr-reader__status_span {
           display: none !important;
         }
-        /* QR 스캔 박스 스타일 */
+        /* QR 스캔 박스 스타일 - 노란색 두꺼운 테두리 */
         #qr-shaded-region {
-          border-color: rgba(34, 197, 94, 0.8) !important;
+          border-width: 4px !important;
+          border-color: #facc15 !important;
+        }
+        /* 인식 영역 테두리 */
+        #qr-reader__scan_region > div:first-child {
+          border: 6px solid #facc15 !important;
+          box-shadow: 0 0 20px rgba(250, 204, 21, 0.5) !important;
         }
       `}</style>
     </div>
