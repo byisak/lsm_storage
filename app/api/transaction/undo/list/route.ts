@@ -48,7 +48,7 @@ function parseUndoMeta(remark: string | null): { meta: Record<string, unknown> |
 }
 
 // 취소 가능한 카테고리 목록
-const UNDOABLE_CATEGORIES = ['출고', '이동(출)', '이동(병합)']
+const UNDOABLE_CATEGORIES = ['출고', '이동(출)', '이동(병합)', '수정']
 
 // 최근 작업 조회 (취소 가능한 작업만)
 export async function GET(request: NextRequest) {
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     let query = `
       SELECT idx, storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user
       FROM ls_motor_subul
-      WHERE Category IN ('출고', '이동(출)', '이동(병합)')
+      WHERE Category IN ('출고', '이동(출)', '이동(병합)', '수정')
         AND Subul_Time > DATE_SUB(NOW(), INTERVAL ${hoursLimit} HOUR)
         AND (Remark IS NULL OR Remark NOT LIKE :undonePattern)
     `
