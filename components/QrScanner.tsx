@@ -7,93 +7,30 @@ import { Button } from '@/components/ui/button'
 interface QrScannerProps {
   isOpen: boolean
   onClose: () => void
-  onScanSuccess?: (storageId: string, location: string) => void  // 창고ID와 위치 전달
+  onScanSuccess?: (storageId: string, location: string) => void
 }
 
 export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const animationFrameRef = useRef<number | null>(null)
+  const scannerRef = useRef<HTMLDivElement>(null)
+  const html5QrCodeRef = useRef<any>(null)
   const lastScanRef = useRef<string>('')
   const lastScanTimeRef = useRef<number>(0)
 
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [showManualInput, setShowManualInput] = useState(false)
   const [manualCode, setManualCode] = useState('')
 
-  // Stop camera
-  const stopCamera = useCallback(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current)
-      animationFrameRef.current = null
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
-    }
-  }, [])
-
-  // Draw QR code boundary
-  const drawBoundary = useCallback((location: { topLeftCorner: {x: number, y: number}, topRightCorner: {x: number, y: number}, bottomRightCorner: {x: number, y: number}, bottomLeftCorner: {x: number, y: number} }) => {
-    const overlayCanvas = overlayCanvasRef.current
-    if (!overlayCanvas) return
-
-    const ctx = overlayCanvas.getContext('2d')
-    if (!ctx) return
-
-    // Clear previous drawing
-    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height)
-
-    // Draw boundary
-    ctx.beginPath()
-    ctx.moveTo(location.topLeftCorner.x, location.topLeftCorner.y)
-    ctx.lineTo(location.topRightCorner.x, location.topRightCorner.y)
-    ctx.lineTo(location.bottomRightCorner.x, location.bottomRightCorner.y)
-    ctx.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y)
-    ctx.closePath()
-
-    ctx.strokeStyle = '#22c55e'
-    ctx.lineWidth = 4
-    ctx.stroke()
-
-    // Draw corner dots
-    const corners = [location.topLeftCorner, location.topRightCorner, location.bottomRightCorner, location.bottomLeftCorner]
-    corners.forEach(corner => {
-      ctx.beginPath()
-      ctx.arc(corner.x, corner.y, 8, 0, 2 * Math.PI)
-      ctx.fillStyle = '#22c55e'
-      ctx.fill()
-    })
-  }, [])
-
-  // Clear boundary
-  const clearBoundary = useCallback(() => {
-    const overlayCanvas = overlayCanvasRef.current
-    if (!overlayCanvas) return
-    const ctx = overlayCanvas.getContext('2d')
-    if (!ctx) return
-    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height)
-  }, [])
-
   // Handle scanned QR code
-  const handleScan = useCallback((data: string, location?: { topLeftCorner: {x: number, y: number}, topRightCorner: {x: number, y: number}, bottomRightCorner: {x: number, y: number}, bottomLeftCorner: {x: number, y: number} }) => {
-    // 중복 스캔 방지 (1초 내 같은 코드)
+  const handleScan = useCallback((data: string) => {
+    // 중복 스캔 방지 (2초 내 같은 코드)
     const now = Date.now()
-    if (data === lastScanRef.current && now - lastScanTimeRef.current < 1000) {
-      // 이미 스캔된 코드면 boundary만 그리기
-      if (location) drawBoundary(location)
+    if (data === lastScanRef.current && now - lastScanTimeRef.current < 2000) {
       return
     }
     lastScanRef.current = data
     lastScanTimeRef.current = now
-
-    // Draw boundary on successful scan
-    if (location) drawBoundary(location)
 
     // Format: "03|A-03-B2" -> storageId = "03", location = "A-03-B2"
     const parts = data.split('|')
@@ -101,185 +38,139 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
       const storageId = parts[0].trim()
       const locationVal = parts[1].trim()
 
-      // 약간의 딜레이 후 닫기 (boundary 표시 확인용)
-      setTimeout(() => {
-        stopCamera()
+      // 스캐너 정지 후 콜백
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current.stop().then(() => {
+          onScanSuccess?.(storageId, locationVal)
+          onClose()
+        }).catch(() => {
+          onScanSuccess?.(storageId, locationVal)
+          onClose()
+        })
+      } else {
         onScanSuccess?.(storageId, locationVal)
         onClose()
-      }, 300)
+      }
     } else {
       setError('잘못된 QR 코드 형식입니다. (예: 03|A-01-A1)')
-      clearBoundary()
     }
-  }, [stopCamera, onScanSuccess, onClose, drawBoundary, clearBoundary])
+  }, [onScanSuccess, onClose])
 
-  // Start scanning with requestAnimationFrame
-  const startScanning = useCallback(() => {
-    if (animationFrameRef.current) return
+  // Start scanner
+  const startScanner = useCallback(async () => {
+    if (!scannerRef.current) return
 
-    import('jsqr').then(({ default: jsQR }) => {
-      const scan = () => {
-        if (!videoRef.current || !canvasRef.current || !overlayCanvasRef.current) {
-          animationFrameRef.current = requestAnimationFrame(scan)
-          return
-        }
+    setLoading(true)
+    setCameraError(null)
+    setError(null)
 
-        const video = videoRef.current
-        const canvas = canvasRef.current
-        const overlayCanvas = overlayCanvasRef.current
-        const ctx = canvas.getContext('2d', { willReadFrequently: true })
-
-        if (!ctx || video.readyState !== video.HAVE_ENOUGH_DATA) {
-          animationFrameRef.current = requestAnimationFrame(scan)
-          return
-        }
-
-        // 캔버스 크기를 비디오에 맞춤
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        overlayCanvas.width = video.videoWidth
-        overlayCanvas.height = video.videoHeight
-
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-
-        // 다양한 inversion 시도로 인식률 향상
-        let code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: 'attemptBoth',  // 반전 이미지도 시도
-        })
-
-        // 인식 실패 시 중앙 영역만 크롭해서 재시도
-        if (!code && canvas.width > 400 && canvas.height > 400) {
-          const cropSize = Math.min(canvas.width, canvas.height) * 0.7
-          const cropX = (canvas.width - cropSize) / 2
-          const cropY = (canvas.height - cropSize) / 2
-          const croppedData = ctx.getImageData(cropX, cropY, cropSize, cropSize)
-          code = jsQR(croppedData.data, croppedData.width, croppedData.height, {
-            inversionAttempts: 'attemptBoth',
-          })
-
-          // 크롭된 좌표를 원본 좌표로 변환
-          if (code && code.location) {
-            code.location.topLeftCorner.x += cropX
-            code.location.topLeftCorner.y += cropY
-            code.location.topRightCorner.x += cropX
-            code.location.topRightCorner.y += cropY
-            code.location.bottomLeftCorner.x += cropX
-            code.location.bottomLeftCorner.y += cropY
-            code.location.bottomRightCorner.x += cropX
-            code.location.bottomRightCorner.y += cropY
-          }
-        }
-
-        if (code && code.data) {
-          handleScan(code.data, code.location)
-        } else {
-          clearBoundary()
-        }
-
-        animationFrameRef.current = requestAnimationFrame(scan)
-      }
-
-      animationFrameRef.current = requestAnimationFrame(scan)
-    }).catch(err => {
-      console.error('Failed to load jsQR:', err)
-      setCameraError('QR 스캐너를 로드할 수 없습니다.')
-    })
-  }, [handleScan, clearBoundary])
-
-  // Start camera with higher resolution
-  const startCamera = useCallback(async () => {
     try {
-      setCameraError(null)
-      setError(null)
+      const { Html5Qrcode } = await import('html5-qrcode')
 
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraError('이 브라우저는 카메라를 지원하지 않습니다.')
-        return
-      }
-
-      let stream: MediaStream | null = null
-
-      // 고해상도 후면 카메라 시도
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'environment',
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          }
-        })
-      } catch {
+      // 이전 인스턴스 정리
+      if (html5QrCodeRef.current) {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-          })
+          await html5QrCodeRef.current.stop()
         } catch {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: true
-          })
+          // ignore
         }
       }
 
-      streamRef.current = stream
+      const html5QrCode = new Html5Qrcode('qr-reader')
+      html5QrCodeRef.current = html5QrCode
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-        startScanning()
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+        // 실험적 기능: 더 나은 인식률
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true
+        }
       }
+
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        config,
+        (decodedText) => {
+          handleScan(decodedText)
+        },
+        () => {
+          // QR 코드 미검출 시 - 무시
+        }
+      )
+
+      setLoading(false)
     } catch (err: unknown) {
-      console.error('Camera error:', err)
-      const error = err as { name?: string }
-      if (error.name === 'NotAllowedError') {
-        setCameraError('카메라 권한이 거부되었습니다.')
-      } else if (error.name === 'NotFoundError') {
+      console.error('Scanner error:', err)
+      setLoading(false)
+
+      const error = err as { name?: string; message?: string }
+      if (error.name === 'NotAllowedError' || error.message?.includes('Permission')) {
+        setCameraError('카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.')
+      } else if (error.name === 'NotFoundError' || error.message?.includes('not found')) {
         setCameraError('카메라를 찾을 수 없습니다.')
-      } else if (error.name === 'NotReadableError') {
+      } else if (error.name === 'NotReadableError' || error.message?.includes('in use')) {
         setCameraError('카메라가 다른 앱에서 사용 중입니다.')
       } else {
         setCameraError('카메라에 접근할 수 없습니다.')
       }
     }
-  }, [startScanning])
+  }, [handleScan])
+
+  // Stop scanner
+  const stopScanner = useCallback(async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        await html5QrCodeRef.current.stop()
+      } catch {
+        // ignore
+      }
+      html5QrCodeRef.current = null
+    }
+  }, [])
 
   // Handle manual code input
   const handleManualSubmit = () => {
     if (manualCode.trim()) {
-      setLoading(true)
       const parts = manualCode.trim().split('|')
       if (parts.length >= 2) {
         const storageId = parts[0].trim()
         const location = parts[1].trim()
-        stopCamera()
+        stopScanner()
         onScanSuccess?.(storageId, location)
         onClose()
       } else {
         // 위치만 입력한 경우
-        stopCamera()
+        stopScanner()
         onScanSuccess?.('', manualCode.trim())
         onClose()
       }
-      setLoading(false)
     }
   }
 
   // Cleanup on unmount or close
   useEffect(() => {
     if (isOpen) {
-      startCamera()
+      // 약간의 딜레이 후 스캐너 시작 (DOM 렌더링 대기)
+      const timer = setTimeout(() => {
+        startScanner()
+      }, 100)
+      return () => clearTimeout(timer)
     } else {
-      stopCamera()
+      stopScanner()
       setError(null)
       setShowManualInput(false)
       setManualCode('')
     }
+  }, [isOpen, startScanner, stopScanner])
 
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      stopCamera()
+      stopScanner()
     }
-  }, [isOpen, startCamera, stopCamera])
+  }, [stopScanner])
 
   if (!isOpen) return null
 
@@ -291,7 +182,10 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={onClose}
+          onClick={() => {
+            stopScanner()
+            onClose()
+          }}
           className="text-white hover:bg-white/20"
         >
           <X className="w-6 h-6" />
@@ -301,15 +195,15 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
       {/* Content */}
       <div className="flex-1 flex flex-col items-center justify-center p-4">
         {/* Camera view */}
-        <div className="relative w-full max-w-md aspect-[3/4] bg-black rounded-2xl overflow-hidden">
+        <div className="relative w-full max-w-md bg-black rounded-2xl overflow-hidden">
           {cameraError || showManualInput ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4">
+            <div className="aspect-[3/4] flex flex-col items-center justify-center text-white p-4">
               {!showManualInput ? (
                 <>
                   <AlertCircle className="w-12 h-12 mb-4 text-red-400" />
                   <p className="text-center text-sm mb-4">{cameraError}</p>
                   <div className="flex flex-col gap-2">
-                    <Button onClick={startCamera} variant="secondary">
+                    <Button onClick={startScanner} variant="secondary">
                       다시 시도
                     </Button>
                     <Button
@@ -339,7 +233,7 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
                     <Button
                       onClick={() => {
                         setShowManualInput(false)
-                        startCamera()
+                        startScanner()
                       }}
                       variant="outline"
                       className="text-white border-white/30 hover:bg-white/10"
@@ -348,7 +242,7 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
                     </Button>
                     <Button
                       onClick={handleManualSubmit}
-                      disabled={!manualCode.trim() || loading}
+                      disabled={!manualCode.trim()}
                     >
                       확인
                     </Button>
@@ -358,37 +252,30 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
             </div>
           ) : (
             <>
-              <video
-                ref={videoRef}
-                className="absolute inset-0 w-full h-full object-cover"
-                playsInline
-                muted
-                autoPlay
-              />
-              <canvas ref={canvasRef} className="hidden" />
-              {/* Overlay canvas for QR boundary */}
-              <canvas
-                ref={overlayCanvasRef}
-                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              {/* QR Scanner container */}
+              <div
+                id="qr-reader"
+                ref={scannerRef}
+                className="w-full"
+                style={{ minHeight: '400px' }}
               />
 
-              {/* Scan frame overlay */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="relative w-64 h-64">
-                  {/* 스캔 영역 표시 */}
-                  <div className="absolute inset-0 border-2 border-white/30 rounded-lg" />
-                  {/* 모서리 강조 */}
-                  <div className="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-white rounded-tl-lg" />
-                  <div className="absolute -top-1 -right-1 w-10 h-10 border-t-4 border-r-4 border-white rounded-tr-lg" />
-                  <div className="absolute -bottom-1 -left-1 w-10 h-10 border-b-4 border-l-4 border-white rounded-bl-lg" />
-                  <div className="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-white rounded-br-lg" />
+              {loading && (
+                <div className="absolute inset-0 bg-black flex items-center justify-center">
+                  <div className="text-white text-center">
+                    <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-sm">카메라 시작 중...</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* 하단 직접입력 버튼 */}
               <div className="absolute bottom-4 left-0 right-0 flex justify-center">
                 <Button
-                  onClick={() => setShowManualInput(true)}
+                  onClick={() => {
+                    stopScanner()
+                    setShowManualInput(true)
+                  }}
                   variant="secondary"
                   className="bg-white/20 hover:bg-white/30 text-white"
                 >
@@ -410,6 +297,42 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
           </div>
         )}
       </div>
+
+      {/* html5-qrcode 스타일 오버라이드 */}
+      <style jsx global>{`
+        #qr-reader {
+          border: none !important;
+          width: 100% !important;
+        }
+        #qr-reader video {
+          width: 100% !important;
+          height: auto !important;
+          object-fit: cover !important;
+          border-radius: 16px !important;
+        }
+        #qr-reader__scan_region {
+          min-height: 400px !important;
+        }
+        #qr-reader__scan_region video {
+          border-radius: 16px !important;
+        }
+        #qr-reader__dashboard {
+          display: none !important;
+        }
+        #qr-reader__dashboard_section {
+          display: none !important;
+        }
+        #qr-reader__dashboard_section_swaplink {
+          display: none !important;
+        }
+        #qr-reader__status_span {
+          display: none !important;
+        }
+        /* QR 스캔 박스 스타일 */
+        #qr-shaded-region {
+          border-color: rgba(34, 197, 94, 0.8) !important;
+        }
+      `}</style>
     </div>
   )
 }
