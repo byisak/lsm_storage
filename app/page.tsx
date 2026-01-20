@@ -714,6 +714,14 @@ function HomeContent() {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-'
     const date = new Date(dateString)
+    // 시간이 00:00이면 날짜만 표시
+    if (date.getHours() === 0 && date.getMinutes() === 0) {
+      return date.toLocaleDateString('ko-KR', {
+        year: '2-digit',
+        month: '2-digit',
+        day: '2-digit',
+      })
+    }
     return date.toLocaleString('ko-KR', {
       year: '2-digit',
       month: '2-digit',
