@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Home, PackagePlus, ClipboardList, ScanLine } from 'lucide-react'
 import { useSettings } from '@/lib/settings-context'
 import { QrScanner } from '@/components/QrScanner'
@@ -15,8 +15,16 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname()
+  const router = useRouter()
   const { settings } = useSettings()
   const [showScanner, setShowScanner] = useState(false)
+
+  // 스캔 성공 시 홈페이지로 이동하면서 위치 전달
+  const handleScanSuccess = (location: string) => {
+    setShowScanner(false)
+    // 홈페이지로 이동하면서 랙 검색 값 전달
+    router.push(`/?rackSearch=${encodeURIComponent(location)}`)
+  }
 
   return (
     <>
@@ -62,6 +70,7 @@ export function BottomNav() {
       <QrScanner
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}
+        onScanSuccess={handleScanSuccess}
       />
     </>
   )

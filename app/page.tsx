@@ -157,6 +157,44 @@ function HomeContent() {
     if (warehousesLoading) return
 
     const scanParam = searchParams.get('scan')
+    const rackSearchParam = searchParams.get('rackSearch')
+
+    // rackSearch 파라미터 처리 (QR 스캔 후 위치 검색)
+    if (rackSearchParam) {
+      setActiveTab('rack')
+      setQuery(rackSearchParam)
+
+      const doRackSearch = async () => {
+        setHasSearched(true)
+        setShowLocationSuggestions(false)
+        setLocationSuggestions([])
+        setLoading(true)
+        setSearched(true)
+
+        try {
+          const q = expandLocation(rackSearchParam)
+          setCurrentSearchQuery(q)
+          addRackSearchHistory(rackSearchParam)
+          setRackSearchHistory(getRackSearchHistory())
+
+          const res = await fetch(`/api/rack/search?location=${encodeURIComponent(q)}`)
+          const data = await res.json()
+          if (data.success) {
+            setItems(data.items)
+            setSearchedLocation(null)
+          }
+        } catch (error) {
+          console.error('Rack search error:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      doRackSearch()
+      router.replace('/', { scroll: false })
+      return
+    }
+
     if (scanParam) {
       // 랙 검색 탭으로 전환하고 자동 검색
       setActiveTab('rack')
