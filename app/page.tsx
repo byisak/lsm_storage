@@ -158,6 +158,7 @@ function HomeContent() {
 
     const scanParam = searchParams.get('scan')
     const rackSearchParam = searchParams.get('rackSearch')
+    const storageIdParam = searchParams.get('storageId')
 
     // rackSearch 파라미터 처리 (QR 스캔 후 위치 검색)
     if (rackSearchParam) {
@@ -177,11 +178,22 @@ function HomeContent() {
           addRackSearchHistory(rackSearchParam)
           setRackSearchHistory(getRackSearchHistory())
 
-          const res = await fetch(`/api/rack/search?location=${encodeURIComponent(q)}`)
+          // 창고ID가 있으면 필터링 추가
+          let url = `/api/rack/search?location=${encodeURIComponent(q)}`
+          if (storageIdParam) {
+            url += `&storage=${encodeURIComponent(storageIdParam)}`
+          }
+
+          const res = await fetch(url)
           const data = await res.json()
           if (data.success) {
             setItems(data.items)
-            setSearchedLocation(null)
+            // 창고명 표시
+            if (data.storage) {
+              setSearchedLocation({ storage: data.storage, location: q })
+            } else {
+              setSearchedLocation(null)
+            }
           }
         } catch (error) {
           console.error('Rack search error:', error)

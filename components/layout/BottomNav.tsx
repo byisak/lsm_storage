@@ -19,11 +19,16 @@ export function BottomNav() {
   const { settings } = useSettings()
   const [showScanner, setShowScanner] = useState(false)
 
-  // 스캔 성공 시 홈페이지로 이동하면서 위치 전달
-  const handleScanSuccess = (location: string) => {
+  // 스캔 성공 시 홈페이지로 이동하면서 창고ID와 위치 전달
+  const handleScanSuccess = (storageId: string, location: string) => {
     setShowScanner(false)
-    // 홈페이지로 이동하면서 랙 검색 값 전달
-    router.push(`/?rackSearch=${encodeURIComponent(location)}`)
+    // 홈페이지로 이동하면서 창고ID와 랙 검색 값 전달
+    const params = new URLSearchParams()
+    params.set('rackSearch', location)
+    if (storageId) {
+      params.set('storageId', storageId)
+    }
+    router.push(`/?${params.toString()}`)
   }
 
   return (
