@@ -257,7 +257,8 @@ function TransactionInContent() {
   }
 
   // 최근 위치 선택
-  const handleSelectRecentLocation = (location: LocationSuggestion) => {
+  const handleSelectRecentLocation = (e: React.MouseEvent, location: LocationSuggestion) => {
+    e.stopPropagation()
     setFormData((prev) => ({
       ...prev,
       location: location.location,
@@ -267,7 +268,8 @@ function TransactionInContent() {
   }
 
   // 최근 품목 선택
-  const handleSelectRecentItem = (item: AutocompleteItem) => {
+  const handleSelectRecentItem = (e: React.MouseEvent, item: AutocompleteItem) => {
+    e.stopPropagation()
     setFormData((prev) => ({
       ...prev,
       itemCode: item.itemCode,
@@ -559,7 +561,7 @@ function TransactionInContent() {
                       {recentLocations.map((loc) => (
                         <div
                           key={`${loc.storage}-${loc.location}`}
-                          onClick={() => handleSelectRecentLocation(loc)}
+                          onClick={(e) => handleSelectRecentLocation(e, loc)}
                           className="px-3 py-2.5 cursor-pointer border-b border-border last:border-b-0 hover:bg-accent"
                         >
                           <span className="text-primary text-sm font-semibold">{loc.location}</span>
@@ -634,7 +636,7 @@ function TransactionInContent() {
                       {recentItems.map((item) => (
                         <div
                           key={item.itemCode}
-                          onClick={() => handleSelectRecentItem(item)}
+                          onClick={(e) => handleSelectRecentItem(e, item)}
                           className="px-3 py-2.5 cursor-pointer border-b border-border last:border-b-0 hover:bg-accent"
                         >
                           <span className="text-primary text-sm font-semibold">{item.itemCode}</span>
