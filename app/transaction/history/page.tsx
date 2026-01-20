@@ -154,7 +154,7 @@ export default function TransactionHistoryPage() {
             </button>
           ))}
         </div>
-        {/* 날짜 필터 */}
+        {/* 날짜 필터 + 검색 버튼 */}
         <div className="flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
@@ -202,6 +202,14 @@ export default function TransactionHistoryPage() {
               <XCircle className="w-4 h-4" />
             </Button>
           )}
+          <Button
+            size="sm"
+            className="h-8 px-4"
+            onClick={() => fetchHistory(query || undefined)}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '검색'}
+          </Button>
         </div>
         {/* 결과 카운트 */}
         <div className="text-xs text-muted-foreground">
