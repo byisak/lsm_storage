@@ -265,8 +265,8 @@ export default function TransactionHistoryPage() {
                       </p>
                     </div>
 
-                    <p className="font-medium text-foreground mt-1 truncate">{item.itemName}</p>
-                    <p className="text-xs text-muted-foreground">{item.itemCode}</p>
+                    <p className="font-bold text-primary mt-1">{item.itemCode}</p>
+                    <p className="text-xs text-muted-foreground truncate">{item.itemName}</p>
 
                     <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
