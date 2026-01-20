@@ -5,8 +5,8 @@ import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 
 // 창고 ID → 이름 매핑
 const WAREHOUSE_MAP: Record<string, string> = {
-  '1': '모터 창고',
-  '01': '모터 창고',
+  '1': '본사 창고',
+  '01': '본사 창고',
   '2': '외부 창고',
   '02': '외부 창고',
   '3': '제품 창고',

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { X, AlertCircle, Keyboard } from 'lucide-react'
+import { X, AlertCircle, Keyboard, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface QrScannerProps {
@@ -21,6 +21,7 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [showManualInput, setShowManualInput] = useState(false)
   const [manualCode, setManualCode] = useState('')
+  const [detected, setDetected] = useState(false)
 
   // Handle scanned QR code
   const handleScan = useCallback((data: string) => {
@@ -38,19 +39,24 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
       const storageId = parts[0].trim()
       const locationVal = parts[1].trim()
 
+      // 인식 효과 표시
+      setDetected(true)
+
       // 스캐너 정지 후 콜백
-      if (html5QrCodeRef.current) {
-        html5QrCodeRef.current.stop().then(() => {
+      setTimeout(() => {
+        if (html5QrCodeRef.current) {
+          html5QrCodeRef.current.stop().then(() => {
+            onScanSuccess?.(storageId, locationVal)
+            onClose()
+          }).catch(() => {
+            onScanSuccess?.(storageId, locationVal)
+            onClose()
+          })
+        } else {
           onScanSuccess?.(storageId, locationVal)
           onClose()
-        }).catch(() => {
-          onScanSuccess?.(storageId, locationVal)
-          onClose()
-        })
-      } else {
-        onScanSuccess?.(storageId, locationVal)
-        onClose()
-      }
+        }
+      }, 300)
     } else {
       setError('잘못된 QR 코드 형식입니다. (예: 03|A-01-A1)')
     }
@@ -63,6 +69,7 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
     setLoading(true)
     setCameraError(null)
     setError(null)
+    setDetected(false)
 
     try {
       const { Html5Qrcode } = await import('html5-qrcode')
@@ -80,10 +87,9 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
       html5QrCodeRef.current = html5QrCode
 
       const config = {
-        fps: 10,
+        fps: 15,
         qrbox: { width: 250, height: 250 },
         aspectRatio: 1.0,
-        // 실험적 기능: 더 나은 인식률
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true
         }
@@ -152,7 +158,6 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
   // Cleanup on unmount or close
   useEffect(() => {
     if (isOpen) {
-      // 약간의 딜레이 후 스캐너 시작 (DOM 렌더링 대기)
       const timer = setTimeout(() => {
         startScanner()
       }, 100)
@@ -162,6 +167,7 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
       setError(null)
       setShowManualInput(false)
       setManualCode('')
+      setDetected(false)
     }
   }, [isOpen, startScanner, stopScanner])
 
@@ -260,6 +266,18 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
                 style={{ minHeight: '400px' }}
               />
 
+              {/* 중앙 플러스 표시 */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <Plus className="w-12 h-12 text-white/70" strokeWidth={1} />
+              </div>
+
+              {/* 인식 시 노란색 테두리 효과 */}
+              {detected && (
+                <div className="absolute inset-4 border-4 border-yellow-400 rounded-xl animate-pulse pointer-events-none">
+                  <div className="absolute inset-0 bg-yellow-400/20 rounded-xl" />
+                </div>
+              )}
+
               {loading && (
                 <div className="absolute inset-0 bg-black flex items-center justify-center">
                   <div className="text-white text-center">
@@ -288,7 +306,7 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
         </div>
 
         <p className="text-white/70 text-sm mt-4 text-center">
-          랙의 QR 코드를 프레임 안에 맞춰주세요
+          랙의 QR 코드를 중앙에 맞춰주세요
         </p>
 
         {error && (
@@ -328,15 +346,14 @@ export function QrScanner({ isOpen, onClose, onScanSuccess }: QrScannerProps) {
         #qr-reader__status_span {
           display: none !important;
         }
-        /* QR 스캔 박스 스타일 - 노란색 두꺼운 테두리 */
+        /* 스캔 박스 테두리 숨김 */
         #qr-shaded-region {
-          border-width: 4px !important;
-          border-color: #facc15 !important;
+          border: none !important;
+          box-shadow: none !important;
         }
-        /* 인식 영역 테두리 */
-        #qr-reader__scan_region > div:first-child {
-          border: 6px solid #facc15 !important;
-          box-shadow: 0 0 20px rgba(250, 204, 21, 0.5) !important;
+        #qr-reader__scan_region > div {
+          border: none !important;
+          box-shadow: none !important;
         }
       `}</style>
     </div>
