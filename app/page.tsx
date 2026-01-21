@@ -714,20 +714,11 @@ function HomeContent() {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-'
     const date = new Date(dateString)
-    // 시간이 00:00이면 날짜만 표시
-    if (date.getHours() === 0 && date.getMinutes() === 0) {
-      return date.toLocaleDateString('ko-KR', {
-        year: '2-digit',
-        month: '2-digit',
-        day: '2-digit',
-      })
-    }
-    return date.toLocaleString('ko-KR', {
+    // 날짜만 표시 (시간 제외)
+    return date.toLocaleDateString('ko-KR', {
       year: '2-digit',
       month: '2-digit',
       day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
     })
   }
 
