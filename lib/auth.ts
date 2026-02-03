@@ -254,11 +254,17 @@ export async function findUserByEmail(email: string): Promise<UserWithCompany | 
 
     const user = users[0]
 
-    // status를 boolean/number에서 문자열로 변환 (1/true = APPROVED, 0/false = REJECTED)
+    // status를 숫자에서 문자열로 변환 (0=PENDING, 1=APPROVED, 2=REJECTED)
     const statusValue = user.STATUS
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const isApproved = statusValue === true || (statusValue as any) === 1 || String(statusValue) === '1'
-    const normalizedStatus: 'APPROVED' | 'REJECTED' = isApproved ? 'APPROVED' : 'REJECTED'
+    let normalizedStatus: 'PENDING' | 'APPROVED' | 'REJECTED'
+    if ((statusValue as any) === 1 || String(statusValue) === '1') {
+      normalizedStatus = 'APPROVED'
+    } else if ((statusValue as any) === 2 || String(statusValue) === '2') {
+      normalizedStatus = 'REJECTED'
+    } else {
+      normalizedStatus = 'PENDING'
+    }
 
     return {
       ...user,

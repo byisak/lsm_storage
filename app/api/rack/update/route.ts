@@ -183,7 +183,8 @@ export async function PUT(request: NextRequest) {
       }
       if (updateData.remark !== undefined) {
         updateFields.push('Remark = :remark')
-        updateBinds.remark = updateData.remark
+        // ls_motor_rack.Remark is NOT NULL, use empty string if null
+        updateBinds.remark = updateData.remark ?? ''
       }
 
       if (updateFields.length > 0) {
@@ -199,8 +200,16 @@ export async function PUT(request: NextRequest) {
           ? updateData.nowQty - existingRack.nowQty
           : 0
 
-        // LSM_Warehouse_3D Remark 컬럼 길이 제한으로 100자로 자름
-        const truncatedRemark = changeDescription.substring(0, 100)
+        // 되돌리기용 메타데이터 (최소한의 정보만 저장)
+        const undoMeta = {
+          t: 'e',
+          q: existingRack.nowQty,
+          d: existingRack.inDay ? new Date(existingRack.inDay).toISOString().split('T')[0] : null,
+          rid: existingRack.id,
+        }
+
+        // JSON|변경설명 형식으로 저장
+        const remarkWithMeta = JSON.stringify(undoMeta) + '|' + changeDescription
 
         await connection.execute(
           `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
@@ -208,12 +217,12 @@ export async function PUT(request: NextRequest) {
           {
             storage: existingRack.storage,
             location: existingRack.location,
-            itemCode: updateData.itemCode || existingRack.itemCode,
-            itemName: updateData.itemName || existingRack.itemName,
+            itemCode: existingRack.itemCode,  // 수정 전 값 저장 (되돌리기용)
+            itemName: existingRack.itemName,  // 수정 전 값 저장 (되돌리기용)
             qty: Math.abs(qtyDiff) || 0,
             category: '수정',
             subulTime: now,
-            remark: truncatedRemark,
+            remark: remarkWithMeta,
             userId: user || 'mobile',
           },
           { autoCommit: false }

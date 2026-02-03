@@ -90,6 +90,7 @@ function TransactionInContent() {
   const [recentItems, setRecentItems] = useState<AutocompleteItem[]>([])
   const [showRecentLocations, setShowRecentLocations] = useState(false)
   const [showRecentItems, setShowRecentItems] = useState(false)
+  const [skipItemAutocomplete, setSkipItemAutocomplete] = useState(false)
   const recentLocationsRef = useRef<HTMLDivElement>(null)
   const recentItemsRef = useRef<HTMLDivElement>(null)
 
@@ -150,7 +151,10 @@ function TransactionInContent() {
         const data = await res.json()
         if (data.success) {
           setLocationSuggestions(data.locations)
-          setShowLocationSuggestions(data.locations.length > 0)
+          // URL 파라미터로 들어온 경우 자동완성 표시 안함
+          if (!prefilledLocation) {
+            setShowLocationSuggestions(data.locations.length > 0)
+          }
         }
       } catch (error) {
         console.error('Location autocomplete error:', error)
@@ -159,7 +163,7 @@ function TransactionInContent() {
 
     const debounce = setTimeout(fetchLocationSuggestions, 150)
     return () => clearTimeout(debounce)
-  }, [formData.location])
+  }, [formData.location, prefilledLocation])
 
   // 품목코드 자동완성 검색
   useEffect(() => {
@@ -174,7 +178,10 @@ function TransactionInContent() {
         const data = await res.json()
         if (data.success) {
           setSuggestions(data.items)
-          setShowSuggestions(data.items.length > 0)
+          // 최근 품목에서 선택한 경우 자동완성 표시 안함
+          if (!skipItemAutocomplete) {
+            setShowSuggestions(data.items.length > 0)
+          }
         }
       } catch (error) {
         console.error('Autocomplete error:', error)
@@ -183,7 +190,7 @@ function TransactionInContent() {
 
     const debounce = setTimeout(fetchSuggestions, 150)
     return () => clearTimeout(debounce)
-  }, [formData.itemCode])
+  }, [formData.itemCode, skipItemAutocomplete])
 
   // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
@@ -231,9 +238,17 @@ function TransactionInContent() {
     setFormData((prev) => ({ ...prev, [name]: value }))
     if (name === 'itemCode') {
       setSelectedIndex(-1)
+      // 최근 품목에서 선택 후 사용자가 입력 시작하면 자동완성 다시 활성화
+      if (skipItemAutocomplete) {
+        setSkipItemAutocomplete(false)
+      }
     }
     if (name === 'location') {
       setLocationSelectedIndex(-1)
+      // URL 파라미터로 들어온 경우 사용자가 입력 시작하면 초기화
+      if (prefilledLocation) {
+        setPrefilledLocation(null)
+      }
     }
   }
 
@@ -250,7 +265,8 @@ function TransactionInContent() {
   }
 
   // 최근 위치 선택
-  const handleSelectRecentLocation = (location: LocationSuggestion) => {
+  const handleSelectRecentLocation = (e: React.MouseEvent, location: LocationSuggestion) => {
+    e.stopPropagation()
     setFormData((prev) => ({
       ...prev,
       location: location.location,
@@ -260,7 +276,9 @@ function TransactionInContent() {
   }
 
   // 최근 품목 선택
-  const handleSelectRecentItem = (item: AutocompleteItem) => {
+  const handleSelectRecentItem = (e: React.MouseEvent, item: AutocompleteItem) => {
+    e.stopPropagation()
+    setSkipItemAutocomplete(true)
     setFormData((prev) => ({
       ...prev,
       itemCode: item.itemCode,
@@ -552,7 +570,7 @@ function TransactionInContent() {
                       {recentLocations.map((loc) => (
                         <div
                           key={`${loc.storage}-${loc.location}`}
-                          onClick={() => handleSelectRecentLocation(loc)}
+                          onClick={(e) => handleSelectRecentLocation(e, loc)}
                           className="px-3 py-2.5 cursor-pointer border-b border-border last:border-b-0 hover:bg-accent"
                         >
                           <span className="text-primary text-sm font-semibold">{loc.location}</span>
@@ -627,7 +645,7 @@ function TransactionInContent() {
                       {recentItems.map((item) => (
                         <div
                           key={item.itemCode}
-                          onClick={() => handleSelectRecentItem(item)}
+                          onClick={(e) => handleSelectRecentItem(e, item)}
                           className="px-3 py-2.5 cursor-pointer border-b border-border last:border-b-0 hover:bg-accent"
                         >
                           <span className="text-primary text-sm font-semibold">{item.itemCode}</span>

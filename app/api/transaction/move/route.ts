@@ -140,10 +140,20 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // 3. 이동 이력 기록 (출고) - LSM_Warehouse_3D Remark 컬럼 길이 제한으로 간단한 비고만 저장
+      // 3. 이동 이력 기록 (출고) - 되돌리기를 위한 JSON 메타데이터 (압축 키 사용)
       const isMerge = existingTarget && merge
       const sourceCategory = isMerge ? '이동(병합)' : '이동(출)'
-      const sourceRemark = `→ ${toLocation}`.substring(0, 100)
+
+      // t=type, ts=toStorage, tl=toLocation, m=isMerge, tq=targetBeforeQty
+      const undoMeta = {
+        t: 'mv',
+        ts: toStorage,
+        tl: toLocation,
+        m: isMerge ? 1 : 0,
+        tq: targetBeforeQty,
+      }
+      const displayRemark = `→ ${toLocation}`
+      const sourceRemark = `${JSON.stringify(undoMeta)}|${displayRemark}`.substring(0, 100)
 
       await connection.execute(
         `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)

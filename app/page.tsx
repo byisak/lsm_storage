@@ -20,7 +20,7 @@ import { useAuth } from '@/lib/auth-context'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
-import { getItemSearchHistory, addItemSearchHistory, getRackSearchHistory, addRackSearchHistory } from '@/lib/search-history'
+import { getItemSearchHistory, addItemSearchHistory, getRackSearchHistory, addRackSearchHistory, type SearchHistoryItem } from '@/lib/search-history'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -55,6 +55,19 @@ interface LocationSuggestion {
   storage: string
 }
 
+interface HistoryItem {
+  id: number
+  storage: string
+  location: string
+  itemCode: string
+  itemName: string
+  qty: number
+  category: string
+  subulTime: string
+  remark: string | null
+  user: string
+}
+
 function HomeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -82,8 +95,8 @@ function HomeContent() {
   const locationSuggestionsRef = useRef<HTMLDivElement>(null)
 
   // 검색 기록 상태
-  const [itemSearchHistory, setItemSearchHistory] = useState<string[]>([])
-  const [rackSearchHistory, setRackSearchHistory] = useState<string[]>([])
+  const [itemSearchHistory, setItemSearchHistory] = useState<SearchHistoryItem[]>([])
+  const [rackSearchHistory, setRackSearchHistory] = useState<SearchHistoryItem[]>([])
 
   // 출고 모달 상태
   const [outboundItem, setOutboundItem] = useState<RackItem | null>(null)
@@ -145,6 +158,14 @@ function HomeContent() {
   const moveLocationInputRef = useRef<HTMLInputElement>(null)
   const moveLocationSuggestionsRef = useRef<HTMLDivElement>(null)
 
+  // 수불 내역 모달 상태
+  const [historyItem, setHistoryItem] = useState<{ itemCode: string; itemName: string } | null>(null)
+  const [historyData, setHistoryData] = useState<HistoryItem[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyFilter, setHistoryFilter] = useState<string>('전체')
+  const [historyDateFrom, setHistoryDateFrom] = useState<Date | undefined>(undefined)
+  const [historyDateTo, setHistoryDateTo] = useState<Date | undefined>(undefined)
+
   // 창고 컨텍스트에서 창고 목록 및 이름 조회 함수 가져오기
   const { warehouses, loading: warehousesLoading, getWarehouseName } = useWarehouses()
 
@@ -157,6 +178,98 @@ function HomeContent() {
     if (warehousesLoading) return
 
     const scanParam = searchParams.get('scan')
+    const qParam = searchParams.get('q') // QR 전체 값 (예: 03|A-03-B2)
+    const rackSearchParam = searchParams.get('rackSearch')
+    const storageIdParam = searchParams.get('storageId')
+
+    // q 파라미터 처리 (QR 전체 값: 03|A-03-B2)
+    if (qParam && qParam.includes('|')) {
+      const [storageId, locationPart] = qParam.split('|')
+      setActiveTab('rack')
+      setQuery(locationPart)
+
+      const doQSearch = async () => {
+        setHasSearched(true)
+        setShowLocationSuggestions(false)
+        setLocationSuggestions([])
+        setLoading(true)
+        setSearched(true)
+
+        try {
+          const location = expandLocation(locationPart)
+          setCurrentSearchQuery(location)
+          addRackSearchHistory(locationPart)
+          setRackSearchHistory(getRackSearchHistory())
+
+          // 창고ID 포함해서 검색
+          const url = `/api/rack/search?location=${encodeURIComponent(location)}&storage=${encodeURIComponent(storageId)}`
+          const res = await fetch(url)
+          const data = await res.json()
+          if (data.success) {
+            setItems(data.items)
+            if (data.storage) {
+              setSearchedLocation({ storage: data.storage, location: location })
+            }
+          }
+        } catch (error) {
+          console.error('Q param search error:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      doQSearch()
+      router.replace('/', { scroll: false })
+      return
+    }
+
+    // rackSearch 파라미터 처리 (QR 스캔 후 위치 검색)
+    if (rackSearchParam) {
+      setActiveTab('rack')
+      setQuery(rackSearchParam)
+
+      const doRackSearch = async () => {
+        setHasSearched(true)
+        setShowLocationSuggestions(false)
+        setLocationSuggestions([])
+        setLoading(true)
+        setSearched(true)
+
+        try {
+          const q = expandLocation(rackSearchParam)
+          setCurrentSearchQuery(q)
+          addRackSearchHistory(rackSearchParam)
+          setRackSearchHistory(getRackSearchHistory())
+
+          // 창고ID가 있으면 필터링 추가
+          let url = `/api/rack/search?location=${encodeURIComponent(q)}`
+          if (storageIdParam) {
+            url += `&storage=${encodeURIComponent(storageIdParam)}`
+          }
+
+          const res = await fetch(url)
+          const data = await res.json()
+          if (data.success) {
+            setItems(data.items)
+            // 창고명 표시
+            if (data.storage) {
+              setSearchedLocation({ storage: data.storage, location: q })
+            } else {
+              setSearchedLocation(null)
+            }
+          }
+        } catch (error) {
+          console.error('Rack search error:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      doRackSearch()
+      router.replace('/', { scroll: false })
+      return
+    }
+
     if (scanParam) {
       // 랙 검색 탭으로 전환하고 자동 검색
       setActiveTab('rack')
@@ -448,15 +561,15 @@ function HomeContent() {
     setLoading(true)
     setSearched(true)
 
-    // 검색 기록 저장
-    const updatedHistory = addItemSearchHistory(q)
-    setItemSearchHistory(updatedHistory)
-
     try {
       const res = await fetch(`/api/item/search?q=${encodeURIComponent(q)}`)
       const data = await res.json()
       if (data.success) {
         setItems(data.items)
+        // 검색 기록 저장 (첫 번째 결과의 품목명 포함)
+        const firstName = data.items.length > 0 ? data.items[0].itemName : undefined
+        const updatedHistory = addItemSearchHistory(q, firstName)
+        setItemSearchHistory(updatedHistory)
       }
     } catch (error) {
       console.error('Search error:', error)
@@ -480,17 +593,15 @@ function HomeContent() {
     setSearched(true)
     setCurrentSearchQuery(q)
 
-    // 검색 기록 저장
-    const updatedHistory = addRackSearchHistory(q)
-    setRackSearchHistory(updatedHistory)
-
     try {
+      let storageName: string | undefined
       if (q.includes('|')) {
         const res = await fetch(`/api/rack/scan?q=${encodeURIComponent(q)}`)
         const data = await res.json()
         if (data.success) {
           setItems(data.items)
           setSearchedLocation({ storage: data.storage, location: data.location })
+          storageName = data.storage
         }
       } else {
         const res = await fetch(`/api/rack/search?location=${encodeURIComponent(q)}`)
@@ -498,8 +609,12 @@ function HomeContent() {
         if (data.success) {
           setItems(data.items)
           setSearchedLocation(null)
+          if (data.items.length > 0) storageName = data.items[0].storage
         }
       }
+      // 검색 기록 저장
+      const updatedHistory = addRackSearchHistory(q, storageName)
+      setRackSearchHistory(updatedHistory)
     } catch (error) {
       console.error('Rack search error:', error)
     } finally {
@@ -601,6 +716,7 @@ function HomeContent() {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-'
     const date = new Date(dateString)
+    // 날짜만 표시 (시간 제외)
     return date.toLocaleDateString('ko-KR', {
       year: '2-digit',
       month: '2-digit',
@@ -724,6 +840,50 @@ function HomeContent() {
     setMoveLocationSelectedIndex(-1)
     setMoveExpandedHint(null)
   }
+
+  // 수불 내역 모달 열기
+  const openHistoryModal = async (itemCode: string, itemName: string) => {
+    setHistoryItem({ itemCode, itemName })
+    setHistoryData([])
+    setHistoryLoading(true)
+    setHistoryFilter('전체')
+    setHistoryDateFrom(undefined)
+    setHistoryDateTo(undefined)
+
+    try {
+      const res = await fetch(`/api/transaction/history?itemCode=${encodeURIComponent(itemCode)}&limit=100`)
+      const data = await res.json()
+      if (data.success) {
+        setHistoryData(data.items)
+      }
+    } catch (error) {
+      console.error('History fetch error:', error)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  // 수불 내역 필터링
+  const filteredHistoryData = historyData.filter((h) => {
+    // 카테고리 필터
+    if (historyFilter !== '전체') {
+      if (historyFilter === '이동' && !h.category.includes('이동')) return false
+      if (historyFilter !== '이동' && h.category !== historyFilter) return false
+    }
+    // 날짜 필터
+    const itemDate = new Date(h.subulTime)
+    if (historyDateFrom) {
+      const fromDate = new Date(historyDateFrom)
+      fromDate.setHours(0, 0, 0, 0)
+      if (itemDate < fromDate) return false
+    }
+    if (historyDateTo) {
+      const toDate = new Date(historyDateTo)
+      toDate.setHours(23, 59, 59, 999)
+      if (itemDate > toDate) return false
+    }
+    return true
+  })
 
   // 이동 모달 위치 선택 핸들러
   const handleMoveSelectLocation = (suggestion: LocationSuggestion) => {
@@ -1027,17 +1187,21 @@ function HomeContent() {
                   <Clock className="w-3 h-3" />
                   최근 검색
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-1">
                   {itemSearchHistory.map((item, index) => (
                     <button
                       key={index}
                       onClick={() => {
-                        setQuery(item)
-                        handleItemSearch(item)
+                        setQuery(item.code)
+                        handleItemSearch(item.code)
                       }}
-                      className="px-3 py-1.5 text-sm bg-muted hover:bg-accent rounded-lg text-foreground transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 text-sm bg-muted hover:bg-accent rounded-lg transition-colors"
                     >
-                      {item}
+                      <span className="font-semibold text-primary truncate">{item.code}</span>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 ml-2">
+                        {item.name && <span className="max-w-[120px] truncate">{item.name}</span>}
+                        <span>{new Date(item.time).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -1115,17 +1279,21 @@ function HomeContent() {
                   <Clock className="w-3 h-3" />
                   최근 검색
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-1">
                   {rackSearchHistory.map((item, index) => (
                     <button
                       key={index}
                       onClick={() => {
-                        setQuery(item)
-                        handleRackSearch(item)
+                        setQuery(item.code)
+                        handleRackSearch(item.code)
                       }}
-                      className="px-3 py-1.5 text-sm bg-muted hover:bg-accent rounded-lg text-foreground transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 text-sm bg-muted hover:bg-accent rounded-lg transition-colors"
                     >
-                      {item}
+                      <span className="font-semibold text-primary truncate">{item.code}</span>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 ml-2">
+                        {item.name && <span className="max-w-[120px] truncate">{item.name}</span>}
+                        <span>{new Date(item.time).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -1198,13 +1366,18 @@ function HomeContent() {
             {items.map((item) => (
               <Card key={item.id} className="border-0 shadow-sm overflow-hidden bg-card">
                 <CardContent className="p-0">
-                  <div className="p-3">
+                  <div className="px-3 py-2">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-foreground text-base">{item.itemCode}</p>
-                        <p className="text-muted-foreground mt-0.5 text-xs truncate">{item.itemName}</p>
+                        <p
+                          className="font-bold text-primary text-base cursor-pointer hover:underline"
+                          onClick={() => openHistoryModal(item.itemCode, item.itemName)}
+                        >
+                          {item.itemCode}
+                        </p>
+                        <p className="text-muted-foreground text-xs truncate">{item.itemName}</p>
 
-                        <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
                             {item.location}
@@ -1233,7 +1406,7 @@ function HomeContent() {
                   <div className="flex border-t border-border">
                     <button
                       onClick={() => openOutboundModal(item)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium text-orange-600 dark:text-orange-400 hover:bg-accent transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-orange-600 dark:text-orange-400 hover:bg-accent transition-colors"
                     >
                       <ArrowUpFromLine className="w-4 h-4" />
                       출고
@@ -1241,7 +1414,7 @@ function HomeContent() {
                     <div className="w-px bg-border" />
                     <button
                       onClick={() => openMoveModal(item)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium text-teal-600 dark:text-teal-400 hover:bg-accent transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-teal-600 dark:text-teal-400 hover:bg-accent transition-colors"
                     >
                       <MoveRight className="w-4 h-4" />
                       이동
@@ -1249,7 +1422,7 @@ function HomeContent() {
                     <div className="w-px bg-border" />
                     <button
                       onClick={() => openEditModal(item)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
                     >
                       <Pencil className="w-4 h-4" />
                       수정
@@ -1349,7 +1522,12 @@ function HomeContent() {
               disabled={outboundLoading || !outboundQty}
               className="flex-1 h-12 rounded-xl bg-orange-600 hover:bg-orange-700"
             >
-              {outboundLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : '출고 처리'}
+              {outboundLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  처리 중...
+                </>
+              ) : '출고 처리'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1494,7 +1672,12 @@ function HomeContent() {
               disabled={editLoading}
               className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700"
             >
-              {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : '저장'}
+              {editLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  처리 중...
+                </>
+              ) : '저장'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1635,7 +1818,12 @@ function HomeContent() {
               disabled={moveLoading || !moveForm.toLocation || !moveForm.qty}
               className="flex-1 h-12 rounded-xl bg-teal-600 hover:bg-teal-700"
             >
-              {moveLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : '이동 처리'}
+              {moveLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  처리 중...
+                </>
+              ) : '이동 처리'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1705,6 +1893,166 @@ function HomeContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 수불 내역 모달 */}
+      <Dialog open={!!historyItem} onOpenChange={(open) => !open && setHistoryItem(null)}>
+        <DialogContent className="rounded-2xl max-w-md max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">수불 내역</DialogTitle>
+            {historyItem && (
+              <div className="text-sm text-muted-foreground">
+                <span className="font-semibold text-primary">{historyItem.itemCode}</span>
+                <span className="ml-2 truncate">{historyItem.itemName}</span>
+              </div>
+            )}
+          </DialogHeader>
+
+          {/* 필터 영역 */}
+          <div className="space-y-2 pb-2 border-b border-border">
+            {/* 카테고리 필터 */}
+            <div className="flex flex-wrap gap-1">
+              {['전체', '입고', '출고', '이동', '수정'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setHistoryFilter(cat)}
+                  className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                    historyFilter === cat
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-accent text-muted-foreground hover:bg-accent/80'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            {/* 날짜 필터 */}
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs flex-1">
+                    <CalendarIcon className="w-3 h-3 mr-1" />
+                    {historyDateFrom ? format(historyDateFrom, 'yy.MM.dd') : '시작일'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={historyDateFrom}
+                    onSelect={setHistoryDateFrom}
+                    locale={ko}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-muted-foreground text-xs">~</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs flex-1">
+                    <CalendarIcon className="w-3 h-3 mr-1" />
+                    {historyDateTo ? format(historyDateTo, 'yy.MM.dd') : '종료일'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={historyDateTo}
+                    onSelect={setHistoryDateTo}
+                    locale={ko}
+                  />
+                </PopoverContent>
+              </Popover>
+              {(historyDateFrom || historyDateTo) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => {
+                    setHistoryDateFrom(undefined)
+                    setHistoryDateTo(undefined)
+                  }}
+                >
+                  <XCircle className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : filteredHistoryData.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {historyData.length === 0 ? '수불 내역이 없습니다.' : '조건에 맞는 내역이 없습니다.'}
+              </div>
+            ) : (
+              <div className="space-y-2 py-2">
+                <div className="text-xs text-muted-foreground mb-2">
+                  {filteredHistoryData.length}건
+                </div>
+                {filteredHistoryData.map((h) => (
+                  <div key={h.id} className="p-3 bg-accent/50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-semibold ${
+                        h.category === '입고' ? 'text-green-600' :
+                        h.category === '출고' ? 'text-red-600' :
+                        h.category.includes('이동') ? 'text-blue-600' :
+                        h.category === '수정' ? 'text-orange-600' :
+                        'text-foreground'
+                      }`}>
+                        {h.category}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(h.subulTime).toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-muted-foreground">
+                        {h.storage} · {h.location}
+                      </span>
+                      <span className="text-sm font-bold">
+                        {h.category === '출고' ? '-' : h.category === '입고' ? '+' : ''}{h.qty}개
+                      </span>
+                    </div>
+                    {h.user && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        작업자: {h.user}
+                      </div>
+                    )}
+                    {h.remark && (() => {
+                      const pipeIndex = h.remark!.indexOf('|')
+                      const displayText = pipeIndex !== -1 && h.remark!.startsWith('{')
+                        ? h.remark!.substring(pipeIndex + 1)
+                        : (!h.remark!.startsWith('{') ? h.remark : null)
+                      return displayText ? (
+                        <div className="text-xs text-muted-foreground mt-1 bg-muted px-2 py-1 rounded">
+                          {displayText}
+                        </div>
+                      ) : null
+                    })()}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setHistoryItem(null)}
+              className="w-full"
+            >
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

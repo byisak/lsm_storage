@@ -21,12 +21,17 @@ function parseUndoMeta(remark: string | null): { meta: Record<string, unknown> |
   // JSON|displayText 형식 파싱
   const pipeIndex = remark.indexOf('|')
   if (pipeIndex === -1) {
-    // JSON만 있는 경우
+    // JSON만 있는 경우 또는 일반 텍스트
+    // JSON으로 시작하지 않으면 일반 텍스트로 처리
+    if (!remark.startsWith('{')) {
+      return { meta: null, displayRemark: remark }
+    }
     try {
       const meta = JSON.parse(remark)
       return { meta, displayRemark: '' }
     } catch {
-      return { meta: null, displayRemark: remark }
+      // 잘린 JSON - 빈 문자열 반환 (깨진 JSON 표시 방지)
+      return { meta: null, displayRemark: '' }
     }
   }
 
@@ -37,12 +42,13 @@ function parseUndoMeta(remark: string | null): { meta: Record<string, unknown> |
     const meta = JSON.parse(jsonPart)
     return { meta, displayRemark: displayPart }
   } catch {
-    return { meta: null, displayRemark: remark }
+    // 잘린 JSON - displayPart만 표시
+    return { meta: null, displayRemark: displayPart || '' }
   }
 }
 
 // 취소 가능한 카테고리 목록
-const UNDOABLE_CATEGORIES = ['출고', '이동(출)', '이동(병합)']
+const UNDOABLE_CATEGORIES = ['출고', '이동(출)', '이동(병합)', '수정']
 
 // 최근 작업 조회 (취소 가능한 작업만)
 export async function GET(request: NextRequest) {
@@ -57,11 +63,13 @@ export async function GET(request: NextRequest) {
     let query = `
       SELECT idx, storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user
       FROM ls_motor_subul
-      WHERE Category IN ('출고', '이동(출)', '이동(병합)')
+      WHERE Category IN ('출고', '이동(출)', '이동(병합)', '수정')
         AND Subul_Time > DATE_SUB(NOW(), INTERVAL ${hoursLimit} HOUR)
-        AND (Remark IS NULL OR Remark NOT LIKE '%"undone":true%')
+        AND (Remark IS NULL OR Remark NOT LIKE :undonePattern)
     `
-    const params: Record<string, unknown> = {}
+    const params: Record<string, unknown> = {
+      undonePattern: '%"undone":true%',
+    }
 
     // 사용자 필터링 (선택적)
     if (userId) {

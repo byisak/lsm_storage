@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { executeQuery, withTransaction, LsMotorRack } from '@/lib/mysql'
 
 interface SubulRecord {
-  ID: number
+  idx: number
   storage: string
   Location: string
   itemCode: string
@@ -14,22 +14,33 @@ interface SubulRecord {
   user: string
 }
 
+// 압축된 키 형식 (t=type, r=rackId, q=qty, ts=toStorage, tl=toLocation, m=isMerge, tq=targetBeforeQty)
 interface UndoMeta {
-  type: string
+  // 압축 키
+  t?: string      // type: 'out' | 'mv' | 'edit'
+  r?: number      // rackId
+  q?: number      // beforeQty
+  ts?: string     // toStorage
+  tl?: string     // toLocation
+  m?: number      // isMerge (0 or 1)
+  tq?: number     // targetBeforeQty
+  // 레거시 키 (하위 호환)
+  type?: string
   rackId?: number
   beforeQty?: number
-  afterQty?: number
-  inDay?: Date | null
-  originalRemark?: string | null
-  // 이동 관련
-  sourceRackId?: number
-  targetRackId?: number
   toStorage?: string
   toLocation?: string
-  fromStorage?: string
-  fromLocation?: string
   isMerge?: boolean
   targetBeforeQty?: number
+  // 복원용 정보
+  inDay?: string
+  originalRemark?: string
+  // 수정 취소용 (edit)
+  ic?: string     // itemCode (수정 전)
+  in?: string     // itemName (수정 전)
+  d?: string      // inDay (수정 전)
+  rm?: string | null  // remark (수정 전)
+  rid?: number    // rack id
 }
 
 // remark에서 undoMeta 파싱
@@ -61,8 +72,8 @@ export async function POST(request: NextRequest) {
 
     // 이력 조회
     const subulRows = await executeQuery<SubulRecord>(
-      `SELECT ID, storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user
-       FROM ls_motor_subul WHERE ID = :id`,
+      `SELECT idx, storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user
+       FROM ls_motor_subul WHERE idx = :id`,
       { id: subulId }
     )
 
@@ -100,6 +111,9 @@ export async function POST(request: NextRequest) {
     } else if (subul.Category === '이동(출)' || subul.Category === '이동(병합)') {
       // 이동 취소 = 역방향 이동
       await undoMove(subul, meta, now, user)
+    } else if (subul.Category === '수정') {
+      // 수정 취소 = 원래 값으로 복원
+      await undoEdit(subul, meta, now, user)
     } else {
       return NextResponse.json(
         { success: false, message: `${subul.Category} 작업은 취소할 수 없습니다.` },
@@ -125,7 +139,7 @@ async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user:
   await withTransaction(async (connection) => {
     // 현재 해당 위치에 품목이 있는지 확인
     const existingRows = await connection.query<LsMotorRack>(
-      `SELECT ID, Now_Qty FROM ls_motor_rack
+      `SELECT idx, Now_Qty FROM ls_motor_rack
        WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
       { storage: subul.storage, location: subul.Location, itemCode: subul.itemCode }
     )
@@ -133,8 +147,8 @@ async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user:
     if (existingRows.length > 0) {
       // 기존 품목이 있으면 수량 추가
       await connection.execute(
-        `UPDATE ls_motor_rack SET Now_Qty = Now_Qty + :qty WHERE ID = :id`,
-        { qty: subul.Qty, id: existingRows[0].ID },
+        `UPDATE ls_motor_rack SET Now_Qty = Now_Qty + :qty WHERE idx = :id`,
+        { qty: subul.Qty, id: existingRows[0].idx },
         { autoCommit: false }
       )
     } else {
@@ -167,7 +181,7 @@ async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user:
         qty: subul.Qty,
         category: '출고취소',
         subulTime: now,
-        remark: `출고 취소 (원본 ID: ${subul.ID})`,
+        remark: `출고 취소 (원본 ID: ${subul.idx})`,
         userId: user || 'system',
       },
       { autoCommit: false }
@@ -176,8 +190,8 @@ async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user:
     // 원본 이력에 취소 표시
     const updatedRemark = subul.remark?.replace('}', ',"undone":true}') || '{"undone":true}'
     await connection.execute(
-      `UPDATE ls_motor_subul SET remark = :remark WHERE ID = :id`,
-      { remark: updatedRemark, id: subul.ID },
+      `UPDATE ls_motor_subul SET remark = :remark WHERE idx = :id`,
+      { remark: updatedRemark, id: subul.idx },
       { autoCommit: false }
     )
   })
@@ -186,7 +200,11 @@ async function undoOutbound(subul: SubulRecord, meta: UndoMeta, now: Date, user:
 // 이동 취소 (역방향 이동)
 async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: string) {
   await withTransaction(async (connection) => {
-    const { toStorage, toLocation, sourceRackId, targetRackId, targetBeforeQty, isMerge } = meta
+    // 압축 키와 레거시 키 모두 지원
+    const toStorage = meta.ts || meta.toStorage
+    const toLocation = meta.tl || meta.toLocation
+    const targetBeforeQty = meta.tq ?? meta.targetBeforeQty
+    const isMerge = meta.m === 1 || meta.isMerge
 
     if (!toStorage || !toLocation) {
       throw new Error('이동 복구 정보가 불완전합니다.')
@@ -194,7 +212,7 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
 
     // 1. 목적지에서 수량 차감
     const targetRows = await connection.query<LsMotorRack>(
-      `SELECT ID, Now_Qty FROM ls_motor_rack
+      `SELECT idx, Now_Qty FROM ls_motor_rack
        WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
       { storage: toStorage, location: toLocation, itemCode: subul.itemCode }
     )
@@ -206,15 +224,15 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
       if (newQty <= 0) {
         // 목적지 품목 삭제
         await connection.execute(
-          `DELETE FROM ls_motor_rack WHERE ID = :id`,
-          { id: targetRack.ID },
+          `DELETE FROM ls_motor_rack WHERE idx = :id`,
+          { id: targetRack.idx },
           { autoCommit: false }
         )
       } else {
         // 목적지 수량 감소
         await connection.execute(
-          `UPDATE ls_motor_rack SET Now_Qty = :qty WHERE ID = :id`,
-          { qty: newQty, id: targetRack.ID },
+          `UPDATE ls_motor_rack SET Now_Qty = :qty WHERE idx = :id`,
+          { qty: newQty, id: targetRack.idx },
           { autoCommit: false }
         )
       }
@@ -222,7 +240,7 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
 
     // 2. 출발지에 수량 복원
     const sourceRows = await connection.query<LsMotorRack>(
-      `SELECT ID, Now_Qty FROM ls_motor_rack
+      `SELECT idx, Now_Qty FROM ls_motor_rack
        WHERE storage = :storage AND Location = :location AND itemCode = :itemCode`,
       { storage: subul.storage, location: subul.Location, itemCode: subul.itemCode }
     )
@@ -230,8 +248,8 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
     if (sourceRows.length > 0) {
       // 출발지에 품목이 있으면 수량 추가
       await connection.execute(
-        `UPDATE ls_motor_rack SET Now_Qty = Now_Qty + :qty WHERE ID = :id`,
-        { qty: subul.Qty, id: sourceRows[0].ID },
+        `UPDATE ls_motor_rack SET Now_Qty = Now_Qty + :qty WHERE idx = :id`,
+        { qty: subul.Qty, id: sourceRows[0].idx },
         { autoCommit: false }
       )
     } else {
@@ -265,7 +283,7 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
         qty: subul.Qty,
         category: categoryLabel,
         subulTime: now,
-        remark: `${toLocation}에서 복원 (원본 ID: ${subul.ID})`,
+        remark: `${toLocation}에서 복원 (원본 ID: ${subul.idx})`,
         userId: user || 'system',
       },
       { autoCommit: false }
@@ -274,8 +292,8 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
     // 4. 원본 이력에 취소 표시
     const updatedRemark = subul.remark?.replace('}', ',"undone":true}') || '{"undone":true}'
     await connection.execute(
-      `UPDATE ls_motor_subul SET remark = :remark WHERE ID = :id`,
-      { remark: updatedRemark, id: subul.ID },
+      `UPDATE ls_motor_subul SET remark = :remark WHERE idx = :id`,
+      { remark: updatedRemark, id: subul.idx },
       { autoCommit: false }
     )
 
@@ -298,5 +316,71 @@ async function undoMove(subul: SubulRecord, meta: UndoMeta, now: Date, user: str
         { autoCommit: false }
       )
     }
+  })
+}
+
+// 수정 취소 (원래 값으로 복원)
+async function undoEdit(subul: SubulRecord, meta: UndoMeta, now: Date, user: string) {
+  await withTransaction(async (connection) => {
+    // 수정 전 값: subul record에 저장된 itemCode/itemName + meta의 qty/inDay
+    const rackId = meta.rid
+    const prevQty = meta.q
+    const prevInDay = meta.d
+    // subul record에 수정 전 itemCode/itemName이 저장됨
+    const prevItemCode = subul.itemCode
+    const prevItemName = subul.itemName
+
+    if (!rackId) {
+      throw new Error('수정 복구 정보가 불완전합니다. (rack ID 없음)')
+    }
+
+    // 해당 재고가 존재하는지 확인
+    const rackRows = await connection.query<LsMotorRack>(
+      `SELECT idx, itemCode, itemName, Now_Qty, In_day, Remark FROM ls_motor_rack WHERE idx = :id`,
+      { id: rackId }
+    )
+
+    if (rackRows.length === 0) {
+      throw new Error('해당 재고를 찾을 수 없습니다. (이미 삭제됨)')
+    }
+
+    // 원래 값으로 복원 (품목코드, 품목명, 수량, 입고일)
+    await connection.execute(
+      `UPDATE ls_motor_rack SET itemCode = :itemCode, itemName = :itemName, Now_Qty = :nowQty, In_day = :inDay WHERE idx = :id`,
+      {
+        itemCode: prevItemCode,
+        itemName: prevItemName,
+        nowQty: prevQty,
+        inDay: prevInDay ? new Date(prevInDay) : null,
+        id: rackId,
+      },
+      { autoCommit: false }
+    )
+
+    // 취소 이력 기록
+    await connection.execute(
+      `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, remark, user)
+       VALUES (:storage, :location, :itemCode, :itemName, :qty, :category, :subulTime, :remark, :userId)`,
+      {
+        storage: subul.storage,
+        location: subul.Location,
+        itemCode: prevItemCode,
+        itemName: prevItemName,
+        qty: prevQty || 0,
+        category: '수정취소',
+        subulTime: now,
+        remark: `수정 취소 (원본 ID: ${subul.idx})`,
+        userId: user || 'system',
+      },
+      { autoCommit: false }
+    )
+
+    // 원본 이력에 취소 표시
+    const updatedRemark = subul.remark?.replace('}', ',"undone":true}') || '{"undone":true}'
+    await connection.execute(
+      `UPDATE ls_motor_subul SET remark = :remark WHERE idx = :id`,
+      { remark: updatedRemark, id: subul.idx },
+      { autoCommit: false }
+    )
   })
 }

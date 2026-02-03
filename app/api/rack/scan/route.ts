@@ -3,6 +3,21 @@ import { executeQuery, LsMotorRack } from '@/lib/mysql'
 import { getSession } from '@/lib/auth'
 import { isMultiTenantEnabled } from '@/lib/multi-tenant'
 
+// 창고 ID → 이름 매핑 (warehouse-config.ts와 동일하게 유지)
+const WAREHOUSE_MAP: Record<string, string> = {
+  '1': '본사 창고',
+  '01': '본사 창고',
+  '2': '외부 창고',
+  '02': '외부 창고',
+  '3': '제품 창고',
+  '03': '제품 창고',
+}
+
+// 창고 ID를 이름으로 변환
+function getWarehouseName(id: string): string {
+  return WAREHOUSE_MAP[id] || id
+}
+
 // 조회 결과를 camelCase로 변환하는 헬퍼 함수
 function formatItems(items: LsMotorRack[]) {
   return items.map(item => ({
@@ -41,8 +56,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const storageVal = storage.trim()
+    const storageId = storage.trim()
     const locationVal = location.trim()
+    // 창고 ID를 이름으로 변환
+    const storageName = getWarehouseName(storageId)
 
     let items: LsMotorRack[]
 
@@ -53,7 +70,7 @@ export async function POST(request: NextRequest) {
          FROM ls_motor_rack
          WHERE storage = :storage AND Location = :location AND COMPANY_ID = :companyId
          ORDER BY In_day DESC`,
-        { storage: storageVal, location: locationVal, companyId: session.companyId }
+        { storage: storageName, location: locationVal, companyId: session.companyId }
       )
     } else {
       // 단일 테넌트: 기존 방식
@@ -62,13 +79,13 @@ export async function POST(request: NextRequest) {
          FROM ls_motor_rack
          WHERE storage = :storage AND Location = :location
          ORDER BY In_day DESC`,
-        { storage: storageVal, location: locationVal }
+        { storage: storageName, location: locationVal }
       )
     }
 
     return NextResponse.json({
       success: true,
-      storage: storageVal,
+      storage: storageName,
       location: locationVal,
       items: formatItems(items),
       count: items.length,
@@ -115,8 +132,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const storageVal = storageValue.trim()
+    const storageId = storageValue.trim()
     const locationVal = locationValue.trim()
+    // 창고 ID를 이름으로 변환
+    const storageName = getWarehouseName(storageId)
 
     let items: LsMotorRack[]
 
@@ -127,7 +146,7 @@ export async function GET(request: NextRequest) {
          FROM ls_motor_rack
          WHERE storage = :storage AND Location = :location AND COMPANY_ID = :companyId
          ORDER BY In_day DESC`,
-        { storage: storageVal, location: locationVal, companyId: session.companyId }
+        { storage: storageName, location: locationVal, companyId: session.companyId }
       )
     } else {
       // 단일 테넌트: 기존 방식
@@ -136,13 +155,13 @@ export async function GET(request: NextRequest) {
          FROM ls_motor_rack
          WHERE storage = :storage AND Location = :location
          ORDER BY In_day DESC`,
-        { storage: storageVal, location: locationVal }
+        { storage: storageName, location: locationVal }
       )
     }
 
     return NextResponse.json({
       success: true,
-      storage: storageVal,
+      storage: storageName,
       location: locationVal,
       items: formatItems(items),
       count: items.length,
