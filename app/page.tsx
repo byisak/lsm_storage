@@ -2015,6 +2015,17 @@ function HomeContent() {
                         작업자: {h.user}
                       </div>
                     )}
+                    {h.remark && (() => {
+                      const pipeIndex = h.remark!.indexOf('|')
+                      const displayText = pipeIndex !== -1 && h.remark!.startsWith('{')
+                        ? h.remark!.substring(pipeIndex + 1)
+                        : (!h.remark!.startsWith('{') ? h.remark : null)
+                      return displayText ? (
+                        <div className="text-xs text-muted-foreground mt-1 bg-muted px-2 py-1 rounded">
+                          {displayText}
+                        </div>
+                      ) : null
+                    })()}
                   </div>
                 ))}
               </div>

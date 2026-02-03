@@ -208,8 +208,8 @@ export async function PUT(request: NextRequest) {
           rid: existingRack.id,
         }
 
-        // JSON만 (100자 제한에 맞춤)
-        const remarkWithMeta = JSON.stringify(undoMeta)
+        // JSON|변경설명 형식으로 저장
+        const remarkWithMeta = JSON.stringify(undoMeta) + '|' + changeDescription
 
         await connection.execute(
           `INSERT INTO ls_motor_subul (storage, Location, itemCode, itemName, Qty, Category, Subul_Time, Remark, user)
