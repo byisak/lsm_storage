@@ -20,7 +20,7 @@ import { useAuth } from '@/lib/auth-context'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { expandLocation, isShortLocation } from '@/lib/location-utils'
-import { getItemSearchHistory, addItemSearchHistory, getRackSearchHistory, addRackSearchHistory } from '@/lib/search-history'
+import { getItemSearchHistory, addItemSearchHistory, getRackSearchHistory, addRackSearchHistory, type SearchHistoryItem } from '@/lib/search-history'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -95,8 +95,8 @@ function HomeContent() {
   const locationSuggestionsRef = useRef<HTMLDivElement>(null)
 
   // 검색 기록 상태
-  const [itemSearchHistory, setItemSearchHistory] = useState<string[]>([])
-  const [rackSearchHistory, setRackSearchHistory] = useState<string[]>([])
+  const [itemSearchHistory, setItemSearchHistory] = useState<SearchHistoryItem[]>([])
+  const [rackSearchHistory, setRackSearchHistory] = useState<SearchHistoryItem[]>([])
 
   // 출고 모달 상태
   const [outboundItem, setOutboundItem] = useState<RackItem | null>(null)
@@ -561,15 +561,15 @@ function HomeContent() {
     setLoading(true)
     setSearched(true)
 
-    // 검색 기록 저장
-    const updatedHistory = addItemSearchHistory(q)
-    setItemSearchHistory(updatedHistory)
-
     try {
       const res = await fetch(`/api/item/search?q=${encodeURIComponent(q)}`)
       const data = await res.json()
       if (data.success) {
         setItems(data.items)
+        // 검색 기록 저장 (첫 번째 결과의 품목명 포함)
+        const firstName = data.items.length > 0 ? data.items[0].itemName : undefined
+        const updatedHistory = addItemSearchHistory(q, firstName)
+        setItemSearchHistory(updatedHistory)
       }
     } catch (error) {
       console.error('Search error:', error)
@@ -593,17 +593,15 @@ function HomeContent() {
     setSearched(true)
     setCurrentSearchQuery(q)
 
-    // 검색 기록 저장
-    const updatedHistory = addRackSearchHistory(q)
-    setRackSearchHistory(updatedHistory)
-
     try {
+      let storageName: string | undefined
       if (q.includes('|')) {
         const res = await fetch(`/api/rack/scan?q=${encodeURIComponent(q)}`)
         const data = await res.json()
         if (data.success) {
           setItems(data.items)
           setSearchedLocation({ storage: data.storage, location: data.location })
+          storageName = data.storage
         }
       } else {
         const res = await fetch(`/api/rack/search?location=${encodeURIComponent(q)}`)
@@ -611,8 +609,12 @@ function HomeContent() {
         if (data.success) {
           setItems(data.items)
           setSearchedLocation(null)
+          if (data.items.length > 0) storageName = data.items[0].storage
         }
       }
+      // 검색 기록 저장
+      const updatedHistory = addRackSearchHistory(q, storageName)
+      setRackSearchHistory(updatedHistory)
     } catch (error) {
       console.error('Rack search error:', error)
     } finally {
@@ -1185,17 +1187,21 @@ function HomeContent() {
                   <Clock className="w-3 h-3" />
                   최근 검색
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-1">
                   {itemSearchHistory.map((item, index) => (
                     <button
                       key={index}
                       onClick={() => {
-                        setQuery(item)
-                        handleItemSearch(item)
+                        setQuery(item.code)
+                        handleItemSearch(item.code)
                       }}
-                      className="px-3 py-1.5 text-sm bg-muted hover:bg-accent rounded-lg text-foreground transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 text-sm bg-muted hover:bg-accent rounded-lg transition-colors"
                     >
-                      {item}
+                      <span className="font-semibold text-primary truncate">{item.code}</span>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 ml-2">
+                        {item.name && <span className="max-w-[120px] truncate">{item.name}</span>}
+                        <span>{new Date(item.time).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -1273,17 +1279,21 @@ function HomeContent() {
                   <Clock className="w-3 h-3" />
                   최근 검색
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-1">
                   {rackSearchHistory.map((item, index) => (
                     <button
                       key={index}
                       onClick={() => {
-                        setQuery(item)
-                        handleRackSearch(item)
+                        setQuery(item.code)
+                        handleRackSearch(item.code)
                       }}
-                      className="px-3 py-1.5 text-sm bg-muted hover:bg-accent rounded-lg text-foreground transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 text-sm bg-muted hover:bg-accent rounded-lg transition-colors"
                     >
-                      {item}
+                      <span className="font-semibold text-primary truncate">{item.code}</span>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 ml-2">
+                        {item.name && <span className="max-w-[120px] truncate">{item.name}</span>}
+                        <span>{new Date(item.time).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
